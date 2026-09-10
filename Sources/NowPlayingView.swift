@@ -25,14 +25,11 @@ struct NowPlayingView<P: PlayerControlling>: View {
 
                         // Song-Info + Favorit
                         HStack(alignment: .center, spacing: 12) {
-                            SongInfoView(song: player.currentDisplay)
-                                .frame(maxWidth: .infinity)
                             Image(systemName: "heart.fill")
                                 .font(.title2)
                                 .foregroundStyle(Color.pink)
-                            Image(systemName: "star.fill")
-                                .font(.title2)
-                                .foregroundStyle(Color.orange)
+                            SongInfoView(song: player.currentDisplay)
+                                .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, 28)
 
@@ -80,10 +77,19 @@ struct NowPlayingView<P: PlayerControlling>: View {
                         .padding(.horizontal, 20)
 
                         // Extra Buttons
-                        HStack(spacing: 32) {
+                        HStack(spacing: 22) {
                             // AirPlay
                             AirPlayButton()
                                 .frame(width: 44, height: 44)
+
+                            // Favorit
+                            Button { Task { await player.toggleFavorite() } } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: player.isFavorite ? "heart.fill" : "heart").font(.title2)
+                                    Text("Favorit").font(.caption2)
+                                }
+                            }
+                            .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
 
                             // Lyrics
                             Button { showLyrics.toggle() } label: {
