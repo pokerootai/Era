@@ -187,4 +187,4 @@ class MusicPlayerManager: ObservableObject {
     var repeatIcon: String { repeatMode == .one ? "repeat.1" : "repeat" }
 }
 
-​
+

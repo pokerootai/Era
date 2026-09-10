@@ -56,4 +56,4 @@ struct ArtistView: View {
     }
 }
 
-​
+
