@@ -24,20 +24,17 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             .animation(.spring(response: 0.4), value: player.isPlaying)
 
                         // Song-Info + Favorit
-                        SongInfoView(song: player.currentDisplay)
-                            .frame(maxWidth: .infinity)
-                            .overlay(alignment: .trailing) {
-                                Button {
-                                    Task { await player.toggleFavorite() }
-                                } label: {
-                                    Image(systemName: player.isFavorite ? "heart.fill" : "heart")
-                                        .font(.title2)
-                                        .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
-                                        .frame(width: 30, height: 30)
-                                        .contentShape(Rectangle())
-                                }
-                            }
-                            .padding(.horizontal, 28)
+                        HStack(alignment: .center) {
+                            SongInfoView(song: player.currentDisplay)
+                                .frame(maxWidth: .infinity)
+                            Image(systemName: player.isFavorite ? "heart.fill" : "heart")
+                                .font(.title2)
+                                .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
+                                .frame(width: 30, height: 30)
+                                .contentShape(Rectangle())
+                                .onTapGesture { Task { await player.toggleFavorite() } }
+                        }
+                        .padding(.horizontal, 28)
 
                         // Fortschrittsleiste
                         ProgressSection(player: player)
