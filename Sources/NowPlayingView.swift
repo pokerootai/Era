@@ -24,11 +24,9 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             .animation(.spring(response: 0.4), value: player.isPlaying)
 
                         // Song-Info + Favorit
-                        ZStack {
-                            SongInfoView(song: player.currentDisplay)
-                                .frame(maxWidth: .infinity)
-                            HStack {
-                                Spacer()
+                        SongInfoView(song: player.currentDisplay)
+                            .frame(maxWidth: .infinity)
+                            .overlay(alignment: .trailing) {
                                 Button {
                                     Task { await player.toggleFavorite() }
                                 } label: {
@@ -37,7 +35,7 @@ struct NowPlayingView<P: PlayerControlling>: View {
                                         .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
                                 }
                             }
-                        }.padding(.horizontal, 28)
+                            .padding(.horizontal, 28)
 
                         // Fortschrittsleiste
                         ProgressSection(player: player)
