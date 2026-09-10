@@ -59,7 +59,10 @@ struct HomeView: View {
             for album in albums {
                 let detailed = try? await album.with([.tracks])
                 if let tracks = detailed?.tracks {
-                    songs += Array(tracks.prefix(3))
+                    songs += tracks.prefix(3).compactMap { track -> Song? in
+                        if case .song(let song) = track { return song }
+                        return nil
+                    }
                 }
             }
             return songs

@@ -42,13 +42,10 @@ struct AlbumDetailView: View {
             // Tracks
             Section("Titel") {
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { index, song in
-                    HStack {
-                        Text("\(index + 1)").foregroundStyle(.secondary).frame(width: 24)
-                        SongRowView(song: song.displayData)
-                    }
-                    .onTapGesture {
-                        Task { try? await player.playQueue(songs: tracks, startingWith: song) }
-                    }
+                    TrackRow(index: index, song: song.displayData)
+                        .onTapGesture {
+                            Task { try? await player.playQueue(songs: tracks, startingWith: song) }
+                        }
                 }
             }
         }
@@ -63,4 +60,13 @@ struct AlbumDetailView: View {
     }
 }
 
-
+struct TrackRow: View {
+    let index: Int
+    let song: SongDisplayData
+    var body: some View {
+        HStack {
+            Text("\(index + 1)").foregroundStyle(.secondary).frame(width: 24)
+            SongRowView(song: song)
+        }
+    }
+}

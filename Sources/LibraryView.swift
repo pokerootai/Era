@@ -55,13 +55,7 @@ struct LibraryView: View {
     }
 
     private func loadFavorites() async {
-        do {
-            var req = MusicLibraryRequest<Song>()
-            req.filter(matching: \.isFavorite, equalTo: true)
-            req.limit = 50
-            let res = try await req.response()
-            favorites = Array(res.items)
-        } catch {}
+        favorites = player.favoriteSongs
     }
 }
 

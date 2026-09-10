@@ -9,17 +9,21 @@ class MusicPlayerManager: ObservableObject {
     private let player = ApplicationMusicPlayer.shared
 
     // Playback State
-    @Published var playbackState: MusicPlayer.PlaybackStatus = .stopped
+    @Published var playbackState: MusicKit.MusicPlayer.PlaybackStatus = .stopped
     @Published var playbackTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
 
     // Controls
-    @Published var shuffleMode: MusicPlayer.ShuffleMode = .off
-    @Published var repeatMode: MusicPlayer.RepeatMode = .none
+    @Published var shuffleMode: MusicKit.MusicPlayer.ShuffleMode = .off
+    @Published var repeatMode: MusicKit.MusicPlayer.RepeatMode = .none
     @Published var isFavorite: Bool = false
 
     // Queue
     @Published var queue: [Song] = []
+
+    // Favoriten (lokal persistiert - MusicKit bietet keine Favoriten-API)
+    @Published private(set) var favoriteSongs: [Song] = []
+    private let favoritesKey = "era.favorites.v1"
 
     // Lyrics
     @Published var lyrics: String? = nil
@@ -29,15 +33,22 @@ class MusicPlayerManager: ObservableObject {
     @Published var sleepTimerRemaining: TimeInterval? = nil
     private var sleepTimer: Timer?
 
-    private var stateObserver: Task<Void, Never>?
     private var timer: Timer?
 
     init() {
-        stateObserver = Task {
-            for await state in player.state.playbackStatus {
-                self.playbackState = state
-                if state == .playing { self.startTimer() }
-                else { self.stopTimer() }
+        loadFavorites()
+        // Status & Zeit per Polling beobachten (MusicKit hat kein AsyncSequence-API dafuer)
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let status = self.player.state.playbackStatus
+                if status != self.playbackState { self.playbackState = status }
+                if status == .playing {
+                    self.playbackTime = self.player.playbackTime
+                    if let current = self.currentSong {
+                        if self.duration == 0 { self.updateDuration(for: current) }
+                    }
+                }
             }
         }
     }
@@ -102,37 +113,95 @@ class MusicPlayerManager: ObservableObject {
         player.state.repeatMode = repeatMode
     }
 
-    // MARK: - Favoriten
+    // MARK: - Favoriten (lokal)
 
     func toggleFavorite() async {
         guard let song = currentSong else { return }
-        do {
-            if isFavorite { try await MusicLibrary.shared.unfavorite(song) }
-            else           { try await MusicLibrary.shared.favorite(song) }
-            isFavorite.toggle()
-        } catch { print("Favorit-Fehler: \(error)") }
+        if let idx = favoriteSongs.firstIndex(where: { $0.id == song.id }) {
+            favoriteSongs.remove(at: idx)
+            isFavorite = false
+        } else {
+            favoriteSongs.insert(song, at: 0)
+            isFavorite = true
+        }
+        saveFavorites()
     }
 
     private func checkFavorite(for song: Song) async {
-        do {
-            var req = MusicLibraryRequest<Song>()
-            req.filter(matching: \.id, equalTo: song.id)
-            let res = try await req.response()
-            isFavorite = res.items.first?.isFavorite ?? false
-        } catch { isFavorite = false }
+        isFavorite = favoriteSongs.contains { $0.id == song.id }
     }
 
-    // MARK: - Lyrics
+    private func loadFavorites() {
+        if let data = UserDefaults.standard.data(forKey: favoritesKey),
+           let songs = try? JSONDecoder().decode([Song].self, from: data) {
+            favoriteSongs = songs
+        }
+    }
+
+    private func saveFavorites() {
+        if let data = try? JSONEncoder().encode(favoriteSongs) {
+            UserDefaults.standard.set(data, forKey: favoritesKey)
+        }
+    }
+
+    // MARK: - Lyrics (Apple-Music-API via MusicDataRequest, TTML -> Text)
 
     func loadLyrics(for song: Song) async {
         lyrics = nil
+        guard song.hasLyrics else { return }
         isLoadingLyrics = true
         defer { isLoadingLyrics = false }
         do {
-            // MusicKit liefert Lyrics über detailliertes Song-Objekt
-            let detailedSong = try await song.with([.lyrics])
-            lyrics = detailedSong.lyrics
-        } catch { lyrics = nil }
+            let storefront = try await currentStorefront()
+            let url = URL(string: "https://api.music.apple.com/v1/catalog/\(storefront)/songs/\(song.id.rawValue)/lyrics")!
+            let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+            let response = try await request.response()
+            if let ttml = Self.decodeTTML(from: response.data) {
+                lyrics = Self.plainText(fromTTML: ttml)
+            }
+        } catch {
+            lyrics = nil
+        }
+    }
+
+    private func currentStorefront() async throws -> String {
+        struct StorefrontResponse: Decodable {
+            struct Item: Decodable { let id: String }
+            let data: [Item]
+        }
+        let request = MusicDataRequest(urlRequest: URLRequest(url: URL(string: "https://api.music.apple.com/v1/me/storefront")!))
+        let response = try await request.response()
+        let decoded = try JSONDecoder().decode(StorefrontResponse.self, from: response.data)
+        return decoded.data.first?.id ?? "de"
+    }
+
+    private static func decodeTTML(from data: Data) -> String? {
+        struct LyricsResponse: Decodable {
+            struct Item: Decodable {
+                struct Attributes: Decodable { let ttml: String? }
+                let attributes: Attributes?
+            }
+            let data: [Item]
+        }
+        return try? JSONDecoder().decode(LyricsResponse.self, from: data).data.first?.attributes?.ttml
+    }
+
+    private static func plainText(fromTTML ttml: String) -> String {
+        var lines: [String] = []
+        for part in ttml.components(separatedBy: "<p ").dropFirst() {
+            var text = part
+            if let end = text.range(of: "</p>") { text = String(text[..<end.lowerBound]) }
+            text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            text = text.replacingOccurrences(of: "&amp;", with: "&")
+                       .replacingOccurrences(of: "&lt;", with: "<")
+                       .replacingOccurrences(of: "&gt;", with: ">")
+                       .replacingOccurrences(of: "&quot;", with: "\"")
+                       .replacingOccurrences(of: "&apos;", with: "'")
+                       .replacingOccurrences(of: "&#39;", with: "'")
+            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty { lines.append(text) }
+        }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Sleep Timer
@@ -169,16 +238,6 @@ class MusicPlayerManager: ObservableObject {
 
     // MARK: - Helpers
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.playbackTime = self?.player.playbackTime ?? 0
-            }
-        }
-    }
-
-    private func stopTimer() { timer?.invalidate(); timer = nil }
-
     private func updateDuration(for song: Song) { duration = song.duration ?? 0 }
 
     var currentSong: Song? { player.queue.currentEntry?.item as? Song }
@@ -186,5 +245,3 @@ class MusicPlayerManager: ObservableObject {
     var progress: Double { duration > 0 ? playbackTime / duration : 0 }
     var repeatIcon: String { repeatMode == .one ? "repeat.1" : "repeat" }
 }
-
-

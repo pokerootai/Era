@@ -32,7 +32,7 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             } label: {
                                 Image(systemName: player.isFavorite ? "heart.fill" : "heart")
                                     .font(.title2)
-                                    .foregroundStyle(player.isFavorite ? .pink : .secondary)
+                                    .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
                             }
                         }.padding(.horizontal, 28)
 
@@ -45,11 +45,11 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             HStack(spacing: 48) {
                                 Button { player.toggleShuffle() } label: {
                                     Image(systemName: "shuffle").font(.title3)
-                                        .foregroundStyle(player.shuffleActive ? .pink : .secondary)
+                                        .foregroundStyle(player.shuffleActive ? Color.pink : Color.secondary)
                                 }
                                 Button { player.toggleRepeat() } label: {
                                     Image(systemName: player.repeatIcon).font(.title3)
-                                        .foregroundStyle(player.repeatNone ? .secondary : .pink)
+                                        .foregroundStyle(player.repeatNone ? Color.secondary : Color.pink)
                                 }
                             }
 
@@ -92,7 +92,7 @@ struct NowPlayingView<P: PlayerControlling>: View {
                                     Text("Lyrics").font(.caption2)
                                 }
                             }
-                            .foregroundStyle(showLyrics ? .pink : .secondary)
+                            .foregroundStyle(showLyrics ? Color.pink : Color.secondary)
 
                             // Queue
                             Button { showQueue.toggle() } label: {
@@ -111,7 +111,7 @@ struct NowPlayingView<P: PlayerControlling>: View {
                                         .font(.caption2)
                                 }
                             }
-                            .foregroundStyle(player.sleepTimerRemaining != nil ? .pink : .secondary)
+                            .foregroundStyle(player.sleepTimerRemaining != nil ? Color.pink : Color.secondary)
                         }
                         .padding(.bottom, 20)
 
