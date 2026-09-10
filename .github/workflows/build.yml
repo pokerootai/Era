@@ -1,0 +1,72 @@
+name: build-era-ipa
+on: [workflow_dispatch, push]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      - name: Generate project
+        run: xcodegen
+      - name: Build unsigned device app
+        run: |
+          set -e
+          xcodebuild -project Era.xcodeproj -scheme Era -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Package + verify IPA
+        run: |
+          set -e
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Era.app Payload/
+          if [ -d Payload/Era.app/_CodeSignature ]; then echo "ERROR: signed"; exit 1; fi
+          file Payload/Era.app/Era
+          zip -qr Era-unsigned.ipa Payload
+          unzip -l Era-unsigned.ipa | head -25
+          shasum -a 256 Era-unsigned.ipa
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Era-unsigned-ipa
+          path: Era-unsigned.ipa
+      - name: Build simulator app
+        run: |
+          set -e
+          xcodebuild -project Era.xcodeproj -scheme Era -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build-sim \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Screenshot states
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("^iPhone (17|18|16)"))] | sort_by(.name) | last | .udid')
+          if [ -z "$UDID" ] || [ "$UDID" = "null" ]; then
+            UDID=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key|test("iOS")) | .value[] | select(.name|test("iPhone"))] | .[0].udid')
+          fi
+          echo "UDID=$UDID"
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" build-sim/Build/Products/Debug-iphonesimulator/Era.app
+          BID=de.malte.era
+          shoot() {
+            name="$1"; shift
+            xcrun simctl terminate "$UDID" "$BID" >/dev/null 2>&1 || true
+            xcrun simctl launch "$UDID" "$BID" "$@" >/dev/null
+            sleep 6
+            xcrun simctl io "$UDID" screenshot "$name.png"
+          }
+          shoot home --demo-home
+          shoot nowplaying --demo-nowplaying
+          shoot search --demo-search
+          shoot library --demo-library
+          shoot album --demo-album
+          shoot mini --demo-mini
+          shoot auth --demo-auth
+          ls -la *.png
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: era-screenshots
+          path: "*.png"
