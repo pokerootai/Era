@@ -24,15 +24,15 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             .animation(.spring(response: 0.4), value: player.isPlaying)
 
                         // Song-Info + Favorit
-                        HStack(alignment: .center) {
+                        HStack(alignment: .center, spacing: 12) {
                             SongInfoView(song: player.currentDisplay)
                                 .frame(maxWidth: .infinity)
-                            Image(systemName: player.isFavorite ? "heart.fill" : "heart")
+                            Image(systemName: "heart.fill")
                                 .font(.title2)
-                                .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
-                                .frame(width: 30, height: 30)
-                                .contentShape(Rectangle())
-                                .onTapGesture { Task { await player.toggleFavorite() } }
+                                .foregroundStyle(Color.pink)
+                            Image(systemName: "star.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color.orange)
                         }
                         .padding(.horizontal, 28)
 
