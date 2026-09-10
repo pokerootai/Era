@@ -54,7 +54,10 @@ struct AlbumDetailView: View {
         .task {
             do {
                 let detailed = try await album.with([.tracks])
-                tracks = Array(detailed.tracks ?? [])
+                tracks = (detailed.tracks ?? []).compactMap { track -> Song? in
+                    if case .song(let song) = track { return song }
+                    return nil
+                }
             } catch { print("Album-Tracks laden: \(error)") }
         }
     }
