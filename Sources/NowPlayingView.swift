@@ -15,8 +15,8 @@ struct NowPlayingView<P: PlayerControlling>: View {
                 ArtworkBackground(song: player.currentDisplay)
 
                 ScrollView {
-                    VStack(spacing: 24) {
-                        Spacer().frame(height: 16)
+                    VStack(spacing: 18) {
+                        Spacer().frame(height: 8)
 
                         // Artwork (animiert groesser wenn playing)
                         ArtworkView(song: player.currentDisplay)
@@ -24,14 +24,9 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             .animation(.spring(response: 0.4), value: player.isPlaying)
 
                         // Song-Info + Favorit
-                        HStack(alignment: .center, spacing: 12) {
-                            Image(systemName: "heart.fill")
-                                .font(.title2)
-                                .foregroundStyle(Color.pink)
-                            SongInfoView(song: player.currentDisplay)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .padding(.horizontal, 28)
+                        SongInfoView(song: player.currentDisplay)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 28)
 
                         // Fortschrittsleiste
                         ProgressSection(player: player)
@@ -119,7 +114,7 @@ struct NowPlayingView<P: PlayerControlling>: View {
                             }
                             .foregroundStyle(player.sleepTimerRemaining != nil ? Color.pink : Color.secondary)
                         }
-                        .padding(.bottom, 20)
+                        .padding(.bottom, 8)
 
                         // Lyrics Panel
                         if showLyrics {
