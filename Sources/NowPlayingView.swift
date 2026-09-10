@@ -33,6 +33,8 @@ struct NowPlayingView<P: PlayerControlling>: View {
                                     Image(systemName: player.isFavorite ? "heart.fill" : "heart")
                                         .font(.title2)
                                         .foregroundStyle(player.isFavorite ? Color.pink : Color.secondary)
+                                        .frame(width: 30, height: 30)
+                                        .contentShape(Rectangle())
                                 }
                             }
                             .padding(.horizontal, 28)
