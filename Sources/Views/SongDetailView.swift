@@ -132,7 +132,7 @@ struct VersionRow: View {
                 }
                 HStack(spacing: 4) {
                     if version.displayTitle != song.title { Text(version.displayTitle) }
-                    if let year = version.year { Text("\(year)") }
+                    if let year = version.year { Text(verbatim: String(year)) }
                 }
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }

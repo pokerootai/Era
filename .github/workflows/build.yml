@@ -106,6 +106,8 @@ jobs:
           sleep 10
           xcrun simctl io "$UDID" screenshot screenshots/08-import-test.png
           xcrun simctl terminate "$UDID" de.malte.era || true
+          echo "--- import report ---"
+          cat "$CONTAINER/Documents/import-report.txt" || true
           echo "--- EraLibrary after import test ---"
           ls -la "$CONTAINER/Library/Application Support/EraLibrary/" || true
       - uses: actions/upload-artifact@v4

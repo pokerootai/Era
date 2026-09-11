@@ -226,12 +226,45 @@ final class ImportManager: ObservableObject {
         URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
     }
 
+    func importFilesForTest(_ urls: [URL], into store: EraStore) async -> String {
+        var lines: [String] = []
+        for source in expandFolders(urls) {
+            let name = source.lastPathComponent
+            let ext = source.pathExtension.lowercased()
+            guard Self.supportedExtensions.contains(ext) else {
+                lines.append("\(name): SKIP Format nicht unterstuetzt")
+                continue
+            }
+            do {
+                let data = try Data(contentsOf: source)
+                lines.append("\(name): gelesen \(data.count) bytes")
+                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "." + ext)
+                try data.write(to: tmp)
+                let hashed = AudioHasher.hash(url: tmp)
+                lines.append("\(name): hash=\(hashed == nil ? "NIL" : "ok") duration=\(hashed?.duration ?? -1)")
+                try? FileManager.default.removeItem(at: tmp)
+                let outcome = try await storeOne(data: data, ext: ext, name: name, into: store, linkTo: nil, versionName: "OG")
+                lines.append("\(name): \(outcome == .imported ? "IMPORTIERT" : "DUPE")")
+            } catch {
+                lines.append("\(name): FEHLER \(error.localizedDescription)")
+            }
+        }
+        let fileCount = (try? FileManager.default.contentsOfDirectory(atPath: LibraryFiles.root.path))?.count ?? -1
+        lines.append("EraLibrary-Dateien: \(fileCount)")
+        return lines.joined(separator: "\n")
+    }
+
     private func summary(imported: Int, dupes: Int, errors: [(String, String)]) -> String? {
         var parts: [String] = []
         if imported > 0 { parts.append(imported == 1 ? "1 Song importiert" : "\(imported) Songs importiert") }
         if dupes > 0 { parts.append(dupes == 1 ? "1 Datei schon in der Bibliothek" : "\(dupes) Dateien schon in der Bibliothek") }
         if !errors.isEmpty {
-            parts.append(errors.count == 1 ? "\(errors[0].0): \(errors[0].1)" : "\(errors.count) Dateien konnten nicht importiert werden: \(errors[0].1)")
+            if errors.count == 1 {
+                parts.append("\(errors[0].0): \(errors[0].1)")
+            } else {
+                let reasons = Dictionary(grouping: errors, by: { $0.1 }).map { "\($0.value.count)x \($0.key)" }
+                parts.append("\(errors.count) Dateien nicht importiert (\(reasons.joined(separator: ", ")))")
+            }
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

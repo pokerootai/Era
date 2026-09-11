@@ -19,7 +19,12 @@ struct EraApp: App {
                 .appendingPathComponent("ImportTest", isDirectory: true)
             if let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
                 let sorted = files.sorted { $0.lastPathComponent < $1.lastPathComponent }
-                Task { await ImportManager.shared.importFiles(sorted, into: store) }
+                Task {
+                    let report = await ImportManager.shared.importFilesForTest(sorted, into: store)
+                    let out = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        .appendingPathComponent("import-report.txt")
+                    try? report.write(to: out, atomically: true, encoding: .utf8)
+                }
             }
         }
         #endif
