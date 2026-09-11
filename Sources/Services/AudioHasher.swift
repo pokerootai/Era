@@ -27,11 +27,6 @@ enum AudioHasher {
                     for ch in 0..<Int(format.channelCount) {
                         hasher.update(bufferPointer: UnsafeRawBufferPointer(start: int16[ch], count: wide))
                     }
-                } else if let audioList = buffer.audioBufferList {
-                    let list = UnsafeMutableAudioBufferListPointer(audioList)
-                    for ab in list {
-                        hasher.update(bufferPointer: UnsafeRawBufferPointer(start: ab.mData, count: Int(ab.mDataByteSize)))
-                    }
                 }
             }
         } catch { return nil }

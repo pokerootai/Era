@@ -148,12 +148,11 @@ final class ImportManager: ObservableObject {
             if let data = try? Data(contentsOf: source) {
                 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "." + ext)
                 try? data.write(to: tmp)
-                if let meta = await MetadataService.read(url: tmp) {
-                    if let t = meta.title, !t.isEmpty { item.title = t }
-                    item.artist = meta.artist ?? ""
-                    item.album = meta.album ?? ""
-                    item.year = meta.year
-                }
+                let meta = await MetadataService.read(url: tmp)
+                if let t = meta.title, !t.isEmpty { item.title = t }
+                item.artist = meta.artist ?? ""
+                item.album = meta.album ?? ""
+                item.year = meta.year
                 try? FileManager.default.removeItem(at: tmp)
             }
             item.suggestedSongID = suggestSong(for: item.title, in: songs)?.id

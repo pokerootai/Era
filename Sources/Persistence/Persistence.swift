@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Combine
 
 // Persistenz hinter Repository-Protokollen (Spec 13.1): die App spricht nur mit
 // den Protokollen, die SwiftData-Implementierung ist austauschbar (z.B. Sync spaeter).
@@ -58,7 +59,7 @@ enum Persistence {
 }
 
 @MainActor
-final class EraStore {
+final class EraStore: ObservableObject {
     let context: ModelContext
 
     init(context: ModelContext) {
