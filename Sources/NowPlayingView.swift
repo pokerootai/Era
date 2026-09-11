@@ -14,6 +14,7 @@ struct NowPlayingView: View {
         }
     }
     private func content(_ song: LocalSong) -> some View {
+        GeometryReader { geo in
         ScrollView { VStack(spacing: 24) {
             Artwork(song: song, radius: 28).frame(maxWidth: 355).aspectRatio(1, contentMode: .fit).padding(.horizontal, 26).padding(.top, 8).scaleEffect(player.isPlaying ? 1 : 0.91).animation(.spring(response: 0.45), value: player.isPlaying)
             HStack { VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.title2.bold()).lineLimit(1); Text(song.subtitle).foregroundStyle(.secondary) }; Spacer(); Button { store.toggleFavorite(song.id) } label: { Image(systemName: song.isFavorite ? "heart.fill" : "heart").font(.title2).foregroundStyle(song.isFavorite ? .pink : .primary).contentTransition(.symbolEffect(.replace)) } }.padding(.horizontal, 28)
@@ -32,7 +33,10 @@ struct NowPlayingView: View {
             GlassEffectContainer(spacing: 18) {
                 HStack(spacing: 18) { control("shuffle", active: player.shuffle) { player.shuffle.toggle() }; control(player.repeatMode == 2 ? "repeat.1":"repeat", active: player.repeatMode > 0) { player.toggleRepeat() }; AirPlayRouteButton().frame(width:44,height:44); control("list.bullet", active:false) { showQueue=true }; control("moon.fill", active:player.sleepRemaining != nil) { showTimer=true } }
             }
-        }.padding(.bottom, 120) }
+            Spacer(minLength: 8)
+        }
+        .frame(minHeight: geo.size.height - 96, alignment: .top)
+        }
     }
     private func control(_ icon:String, active:Bool, action:@escaping()->Void)->some View {
         Button(action: action) {
