@@ -58,6 +58,7 @@ final class LibraryStore: ObservableObject {
     var librarySizeText: String {
         let files = (try? fm.contentsOfDirectory(at: libraryURL, includingPropertiesForKeys: [.fileSizeKey])) ?? []
         let total = files.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+        if total == 0 { return "0 KB" }
         return ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
     }
 
