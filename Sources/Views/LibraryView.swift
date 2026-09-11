@@ -3,7 +3,7 @@ import SwiftData
 import UniformTypeIdentifiers
 
 enum LibrarySection: String, CaseIterable, Identifiable {
-    case songs = "Songs", artists = "Artists", albums = "Alben", playlists = "Playlists"
+    case songs = "Songs", artists = "Artists", albums = "Alben", playlists = "Playlists", versions = "Versionen"
     var id: String { rawValue }
     var icon: String {
         switch self {
@@ -11,6 +11,7 @@ enum LibrarySection: String, CaseIterable, Identifiable {
         case .artists: return "person.fill"
         case .albums: return "square.stack"
         case .playlists: return "music.note.list"
+        case .versions: return "opticaldisc"
         }
     }
 }
@@ -124,6 +125,7 @@ struct LibraryView: View {
             case .artists: artistsSection
             case .albums: albumsSection
             case .playlists: playlistsSection
+            case .versions: versionsSection
             }
         }
         .listStyle(.insetGrouped)
@@ -203,6 +205,30 @@ struct LibraryView: View {
                 newPlaylistName = ""
             }
             Button("Abbrechen", role: .cancel) { newPlaylistName = "" }
+        }
+    }
+
+    private var versionsSection: some View {
+        Section {
+            ForEach(songs) { song in
+                ForEach(song.sortedVersions) { version in
+                    HStack(spacing: 12) {
+                        Artwork(song: song, version: version, radius: 7).frame(width: 40, height: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(song.title).font(.body).lineLimit(1)
+                            HStack(spacing: 4) {
+                                Text(version.name)
+                                if let year = version.year { Text(verbatim: "· \(year)") }
+                            }
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer()
+                        Text(version.durationText).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { player.play(version, from: song.sortedVersions) }
+                }
+            }
         }
     }
 

@@ -102,6 +102,22 @@ extension EraStore: TagRepository {
     func deleteTag(_ tag: Tag) { context.delete(tag); save() }
 }
 
+extension EraStore {
+    func suggestPacksFromLibrary() {
+        guard let songs = try? allSongs(), !songs.isEmpty,
+              let packs = try? allPacks(), let tags = try? allTags() else { return }
+        let existingNames = Set(packs.map { $0.name.lowercased() })
+        for tag in tags {
+            let count = songs.filter { $0.tags.contains { $0.id == tag.id } }.count
+            guard count >= 2, !existingNames.contains(tag.name.lowercased()) else { continue }
+            let pack = Pack(name: tag.name, tagIDs: tag.isStatus ? [] : [tag.id],
+                            statusNames: tag.isStatus ? [tag.name] : [], confirmed: false)
+            context.insert(pack)
+        }
+        save()
+    }
+}
+
 extension EraStore: PackRepository {
     func insertPack(_ pack: Pack) { context.insert(pack); save() }
     func deletePack(_ pack: Pack) { context.delete(pack); save() }

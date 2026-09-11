@@ -13,6 +13,7 @@ struct EraApp: App {
         store.ensureStatusTags()
         LegacyMigration.migrateIfNeeded(store: store)
         DemoSeed.seedIfNeeded(store: store)
+        store.suggestPacksFromLibrary()
         #if targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--era-import-test") {
             let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

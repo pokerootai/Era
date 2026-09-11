@@ -4,6 +4,7 @@ import SwiftData
 struct HomeView: View {
     @Binding var showNowPlaying: Bool
     @EnvironmentObject private var player: PlayerEngine
+    @EnvironmentObject private var store: EraStore
     @Query(sort: \Song.dateAdded, order: .reverse) private var songs: [Song]
     @Query private var packs: [Pack]
 
@@ -91,10 +92,16 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(suggestions) { pack in
-                        Label(pack.name, systemImage: "square.stack")
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 14).padding(.vertical, 10)
-                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        Button {
+                            pack.confirmed = true
+                            store.save()
+                        } label: {
+                            Label(pack.name, systemImage: "plus.square.stack")
+                                .font(.subheadline.weight(.medium))
+                                .padding(.horizontal, 14).padding(.vertical, 10)
+                                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)

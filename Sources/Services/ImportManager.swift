@@ -64,6 +64,7 @@ final class ImportManager: ObservableObject {
             }
         }
         isImporting = false
+        store.suggestPacksFromLibrary()
         message = summary(imported: imported, dupes: dupes, errors: errors)
     }
 
@@ -202,6 +203,7 @@ final class ImportManager: ObservableObject {
             }
         }
         isImporting = false
+        store.suggestPacksFromLibrary()
         message = summary(imported: imported, dupes: dupes, errors: errors)
     }
 
