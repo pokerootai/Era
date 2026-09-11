@@ -28,13 +28,36 @@ struct ContentView: View {
         }
         .tint(EraTheme.accent)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(isEnabled: player.currentSong != nil && tab != 2) {
-            MiniPlayer(player: player) { tab = 2 }
-        }
+        .modifier(BottomAccessoryModifier(enabled: player.currentSong != nil && tab != 2, player: player, open: { tab = 2 }))
         .onAppear {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("--era-player"), player.currentSong == nil, let first = store.songs.first {
                 player.play(first, from: store.songs)
+            }
+        }
+    }
+}
+
+// Mini-Player als native Bottom-Accessory-Leiste (iOS 26.1+), darunter als Glass-Overlay
+private struct BottomAccessoryModifier: ViewModifier {
+    let enabled: Bool
+    let player: PlayerEngine
+    let open: () -> Void
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: enabled) {
+                MiniPlayer(player: player, open: open)
+            }
+        } else {
+            content.overlay(alignment: .bottom) {
+                if enabled {
+                    MiniPlayer(player: player, open: open)
+                        .padding(.vertical, 4)
+                        .glassEffect(.regular, in: .rect(cornerRadius: 24))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 58)
+                }
             }
         }
     }
