@@ -4,6 +4,7 @@ import SwiftData
 // Demo-Daten fuer Simulator-Screenshots (nur Simulator, nur wenn Bibliothek leer).
 // Bildet die Spec-Beispiele ab: 530, Hurricane, Runaway, City in the Sky, Everybody.
 enum DemoSeed {
+    @MainActor
     static func seedIfNeeded(store: EraStore) {
         #if targetEnvironment(simulator)
         guard ProcessInfo.processInfo.arguments.contains("--era-demo") else { return }
