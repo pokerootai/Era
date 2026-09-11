@@ -1,25 +1,29 @@
 name: Era
 options:
   bundleIdPrefix: de.malte
-  deploymentTarget: "26.0"
+  deploymentTarget: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
 targets:
   Era:
     type: application
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "18.0"
     sources: [Sources]
     settings:
       base:
-        GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: de.malte.era
         PRODUCT_NAME: Era
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
-        IPHONEOS_DEPLOYMENT_TARGET: "26.0"
-        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Era
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_NSAppleMusicUsageDescription: Era benötigt Zugriff auf Apple Music, um Songs zu suchen und abzuspielen.
+        INFOPLIST_KEY_UIFileSharingEnabled: YES
+        INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
+        INFOPLIST_KEY_UIBackgroundModes: audio
+        CODE_SIGNING_ALLOWED: NO
 schemes:
   Era:
     build:

@@ -1,58 +1,18 @@
 import SwiftUI
-import MusicKit
 
 struct ContentView: View {
-    @StateObject private var player = MusicPlayerManager()
-    @State private var authStatus: MusicAuthorization.Status = .notDetermined
-    @State private var selectedTab: Tab = .home
-
-    enum Tab { case home, search, library, nowPlaying }
-
+    @StateObject private var store = LibraryStore.shared
+    @StateObject private var player = PlayerEngine.shared
+    @State private var tab = ProcessInfo.processInfo.arguments.contains("--era-library") ? 1 : (ProcessInfo.processInfo.arguments.contains("--era-player") ? 2 : 0)
     var body: some View {
-        #if targetEnvironment(simulator)
-        if let demoMode = DemoMode.from(ProcessInfo.processInfo.arguments) {
-            DemoRootView(mode: demoMode)
-        } else {
-            mainContent
+        ZStack(alignment:.bottom) {
+            TabView(selection:$tab) {
+                HomeView(store:store,player:player,selectedTab:$tab).tabItem{Label("Home",systemImage:"house.fill")}.tag(0)
+                LibraryView(store:store,player:player).tabItem{Label("Mediathek",systemImage:"music.note.list")}.tag(1)
+                NowPlayingView(player:player,store:store).tabItem{Label("Player",systemImage:"play.circle.fill")}.tag(2)
+                SettingsView().tabItem{Label("Mehr",systemImage:"ellipsis.circle.fill")}.tag(3)
+            }.tint(EraTheme.accent)
+            if player.currentSong != nil && tab != 2 { MiniPlayer(player:player){tab=2}.padding(.bottom,50) }
         }
-        #else
-        mainContent
-        #endif
-    }
-
-    private var mainContent: some View {
-        Group {
-            if authStatus == .authorized {
-                ZStack(alignment: .bottom) {
-                    TabView(selection: $selectedTab) {
-                        HomeView(player: player)
-                            .tabItem { Label("Home", systemImage: "house.fill") }
-                            .tag(Tab.home)
-
-                        SearchView(player: player)
-                            .tabItem { Label("Suche", systemImage: "magnifyingglass") }
-                            .tag(Tab.search)
-
-                        LibraryView(player: player)
-                            .tabItem { Label("Mediathek", systemImage: "music.note.list") }
-                            .tag(Tab.library)
-
-                        NowPlayingView(player: player)
-                            .tabItem { Label("Läuft", systemImage: "music.note") }
-                            .tag(Tab.nowPlaying)
-                    }
-
-                    if player.currentSong != nil && selectedTab != .nowPlaying {
-                        MiniPlayerView(player: player) { selectedTab = .nowPlaying }
-                            .padding(.bottom, 60)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .animation(.spring(), value: player.currentSong != nil)
-                    }
-                }
-            } else {
-                AuthorizationView(authStatus: $authStatus)
-            }
-        }
-        .task { authStatus = await MusicAuthorization.request() }
     }
 }
