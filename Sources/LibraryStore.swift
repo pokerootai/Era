@@ -2,13 +2,22 @@ import Foundation
 import AVFoundation
 import UniformTypeIdentifiers
 
+private struct ImportOutcome: Sendable {
+    let song: LocalSong?
+    let name: String
+    let error: String?
+}
+
 @MainActor
 final class LibraryStore: ObservableObject {
     static let shared = LibraryStore()
     @Published private(set) var songs: [LocalSong] = []
     @Published var importMessage: String?
+    @Published var isImporting = false
     @Published var sort: LibrarySort = .recent
     @Published var searchText = ""
+
+    static let supportedExtensions: Set<String> = ["mp3", "m4a", "aac", "wav", "aif", "aiff", "caf", "flac"]
 
     private let fm = FileManager.default
     private var libraryURL: URL { fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EraLibrary", isDirectory: true) }
@@ -18,7 +27,15 @@ final class LibraryStore: ObservableObject {
         try? fm.createDirectory(at: libraryURL, withIntermediateDirectories: true)
         load()
         #if targetEnvironment(simulator)
-        if songs.isEmpty && ProcessInfo.processInfo.arguments.contains("--era-demo") { seedDemo() }
+        let args = ProcessInfo.processInfo.arguments
+        if songs.isEmpty && args.contains("--era-demo") { seedDemo() }
+        if args.contains("--era-import-test") {
+            let testDir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("ImportTest", isDirectory: true)
+            if let files = try? fm.contentsOfDirectory(at: testDir, includingPropertiesForKeys: nil) {
+                let sorted = files.sorted { $0.lastPathComponent < $1.lastPathComponent }
+                Task { await importFiles(sorted) }
+            }
+        }
         #endif
     }
 
@@ -38,34 +55,68 @@ final class LibraryStore: ObservableObject {
     var recentlyPlayed: [LocalSong] { songs.filter { $0.playCount > 0 }.sorted { $0.playCount > $1.playCount } }
     var totalDuration: Double { songs.reduce(0) { $0 + $1.duration } }
 
+    var librarySizeText: String {
+        let files = (try? fm.contentsOfDirectory(at: libraryURL, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let total = files.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+        return ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
+    }
+
     func fileURL(for song: LocalSong) -> URL { libraryURL.appendingPathComponent(song.fileName) }
 
     func importFiles(_ urls: [URL]) async {
-        var imported = 0
-        for source in urls {
-            let access = source.startAccessingSecurityScopedResource()
-            defer { if access { source.stopAccessingSecurityScopedResource() } }
-            do {
+        isImporting = true
+        let lib = libraryURL
+        let supported = Self.supportedExtensions
+        let outcomes: [ImportOutcome] = await Task.detached(priority: .userInitiated) { () -> [ImportOutcome] in
+            var results: [ImportOutcome] = []
+            for source in urls {
+                let name = source.lastPathComponent
                 let ext = source.pathExtension.lowercased()
-                guard ["mp3", "m4a", "aac", "wav", "aif", "aiff", "caf", "flac"].contains(ext) else { continue }
-                let id = UUID()
-                let destination = libraryURL.appendingPathComponent("\(id.uuidString).\(ext)")
-                try fm.copyItem(at: source, to: destination)
-                let asset = AVURLAsset(url: destination)
-                let duration = (try? await asset.load(.duration).seconds) ?? 0
-                let metadata = (try? await asset.load(.commonMetadata)) ?? []
-                let title = await metadataValue(.commonIdentifierTitle, in: metadata) ?? source.deletingPathExtension().lastPathComponent
-                let artist = await metadataValue(.commonIdentifierArtist, in: metadata) ?? "Unbekannter Künstler"
-                let album = await metadataValue(.commonIdentifierAlbumName, in: metadata) ?? "Ohne Album"
-                songs.insert(LocalSong(id: id, title: title, artist: artist, album: album, fileName: destination.lastPathComponent, duration: duration.isFinite ? duration : 0, dateAdded: Date(), playCount: 0, isFavorite: false), at: 0)
-                imported += 1
-            } catch { importMessage = "Ein Song konnte nicht importiert werden." }
-        }
+                guard supported.contains(ext) else {
+                    results.append(ImportOutcome(song: nil, name: name, error: "Format nicht unterstützt"))
+                    continue
+                }
+                let access = source.startAccessingSecurityScopedResource()
+                do {
+                    // Data(contentsOf:) lädt auch nicht heruntergeladene iCloud-Dateien zuverlässig nach
+                    let data = try Data(contentsOf: source)
+                    if access { source.stopAccessingSecurityScopedResource() }
+                    let id = UUID()
+                    let destination = lib.appendingPathComponent("\(id.uuidString).\(ext)")
+                    try data.write(to: destination, options: .atomic)
+                    let asset = AVURLAsset(url: destination)
+                    let duration = (try? await asset.load(.duration).seconds) ?? 0
+                    let metadata = (try? await asset.load(.commonMetadata)) ?? []
+                    let title = await Self.metadataValue(.commonIdentifierTitle, in: metadata) ?? source.deletingPathExtension().lastPathComponent
+                    let artist = await Self.metadataValue(.commonIdentifierArtist, in: metadata) ?? "Unbekannter Künstler"
+                    let album = await Self.metadataValue(.commonIdentifierAlbumName, in: metadata) ?? "Ohne Album"
+                    results.append(ImportOutcome(song: LocalSong(id: id, title: title, artist: artist, album: album, fileName: destination.lastPathComponent, duration: duration.isFinite ? duration : 0, dateAdded: Date(), playCount: 0, isFavorite: false), name: name, error: nil))
+                } catch {
+                    if access { source.stopAccessingSecurityScopedResource() }
+                    results.append(ImportOutcome(song: nil, name: name, error: error.localizedDescription))
+                }
+            }
+            return results
+        }.value
+
+        let imported = outcomes.compactMap(\.song)
+        for song in imported.reversed() { songs.insert(song, at: 0) }
         save()
-        importMessage = imported == 1 ? "1 Song importiert" : "\(imported) Songs importiert"
+        isImporting = false
+
+        let failed = outcomes.filter { $0.error != nil }
+        if imported.isEmpty && !failed.isEmpty {
+            importMessage = failed.count == 1
+                ? "\(failed[0].name): \(failed[0].error ?? "Fehler")"
+                : "\(failed.count) Dateien konnten nicht importiert werden: \(failed[0].error ?? "")"
+        } else if failed.isEmpty {
+            importMessage = imported.count == 1 ? "1 Song importiert" : "\(imported.count) Songs importiert"
+        } else {
+            importMessage = "\(imported.count) importiert, \(failed.count) übersprungen (\(failed[0].error ?? ""))"
+        }
     }
 
-    private func metadataValue(_ identifier: AVMetadataIdentifier, in items: [AVMetadataItem]) async -> String? {
+    private nonisolated static func metadataValue(_ identifier: AVMetadataIdentifier, in items: [AVMetadataItem]) async -> String? {
         guard let item = AVMetadataItem.metadataItems(from: items, filteredByIdentifier: identifier).first else { return nil }
         return try? await item.load(.stringValue)
     }

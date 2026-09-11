@@ -37,12 +37,25 @@ struct MiniPlayer: View {
     var body: some View {
         if let song = player.currentSong {
             HStack(spacing: 12) {
-                Artwork(song: song, radius: 8).frame(width: 45, height: 45)
-                VStack(alignment: .leading, spacing: 2) { Text(song.title).font(.subheadline.bold()).lineLimit(1); Text(song.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                Artwork(song: song, radius: 8).frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(song.title).font(.subheadline.bold()).lineLimit(1)
+                    Text(song.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
                 Spacer()
-                Button { player.toggle() } label: { Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").contentTransition(.symbolEffect(.replace)).font(.title3) }
-                Button { player.next() } label: { Image(systemName: "forward.fill").font(.title3) }
-            }.padding(10).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous)).padding(.horizontal, 10).onTapGesture(perform: open)
+                Button { player.toggle() } label: {
+                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                        .contentTransition(.symbolEffect(.replace)).font(.title3)
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                Button { player.next() } label: {
+                    Image(systemName: "forward.fill").font(.title3)
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+            }
+            .padding(.horizontal, 6)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: open)
         }
     }
 }

@@ -6,6 +6,14 @@ struct LibraryView: View {
     @ObservedObject var player: PlayerEngine
     @State private var importer = false
 
+    private var importableTypes: [UTType] {
+        var types: [UTType] = [.audio, .mp3, .mpeg4Audio, .wav, .aiff, .appleProtectedMPEG4Audio]
+        for raw in ["public.flac-audio", "org.xiph.flac", "com.apple.coreaudio-format", "public.aifc-audio"] {
+            if let t = UTType(raw) { types.append(t) }
+        }
+        return types
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -20,7 +28,29 @@ struct LibraryView: View {
                     Button { importer = true } label: { Image(systemName: "square.and.arrow.down") }.symbolEffect(.bounce, value: store.songs.count)
                 }
             }
-            .fileImporter(isPresented: $importer, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in if case .success(let urls) = result { Task { await store.importFiles(urls) } } }
+            .fileImporter(isPresented: $importer, allowedContentTypes: importableTypes, allowsMultipleSelection: true) { result in
+                switch result {
+                case .success(let urls):
+                    Task {
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                        await store.importFiles(urls)
+                    }
+                case .failure(let error):
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        store.importMessage = "Dateien konnten nicht geöffnet werden: \(error.localizedDescription)"
+                    }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if store.isImporting {
+                    Label("Importiere …", systemImage: "square.and.arrow.down")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 18).padding(.vertical, 12)
+                        .glassEffect(.regular, in: .capsule)
+                        .padding(.bottom, 24)
+                }
+            }
             .alert("Era", isPresented: Binding(get: { store.importMessage != nil }, set: { if !$0 { store.importMessage = nil } })) { Button("OK") { store.importMessage = nil } } message: { Text(store.importMessage ?? "") }
         }
     }
@@ -44,7 +74,7 @@ struct LibraryView: View {
     }
 
     private var emptyState: some View {
-        ContentUnavailableView { Label("Deine Musik. Dein iPhone.", systemImage: "waveform.circle.fill") } description: { Text("Importiere MP3, M4A, WAV, FLAC und mehr. Alles bleibt offline auf deinem Gerät.") } actions: { Button { importer = true } label: { Label("Songs importieren", systemImage: "square.and.arrow.down") }.buttonStyle(.borderedProminent).tint(EraTheme.accent) }
+        ContentUnavailableView { Label("Deine Musik. Dein iPhone.", systemImage: "waveform.circle.fill") } description: { Text("Importiere MP3, M4A, WAV, FLAC und mehr aus der Dateien-App.") } actions: { Button { importer = true } label: { Label("Songs importieren", systemImage: "square.and.arrow.down") }.buttonStyle(.glassProminent) }
     }
     private func formatDuration(_ value: Double) -> String { let h = Int(value)/3600; let m=(Int(value)%3600)/60; return h > 0 ? "\(h) Std. \(m) Min." : "\(m) Min." }
 }

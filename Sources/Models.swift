@@ -21,13 +21,6 @@ enum LibrarySort: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-enum MusicSource: String, CaseIterable, Identifiable {
-    case local = "Auf diesem iPhone"
-    case appleMusic = "Apple Music"
-    var id: String { rawValue }
-    var available: Bool { self == .local }
-}
-
 struct EraTheme {
     static let accent = Color(red: 0.69, green: 0.39, blue: 1)
     static let blue = Color(red: 0.18, green: 0.70, blue: 1)
