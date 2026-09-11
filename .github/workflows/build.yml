@@ -24,7 +24,7 @@ jobs:
           xcodebuild -project Era.xcodeproj -scheme Era -configuration Release -sdk iphoneos -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO build
           mkdir -p Payload
           cp -R build/device/Build/Products/Release-iphoneos/Era.app Payload/
-          zip -qry Era-v3-unsigned.ipa Payload
+          zip -qry Era-v3.1-unsigned.ipa Payload
       - name: Verify unsigned device IPA
         run: |
           file Payload/Era.app/Era
@@ -99,9 +99,17 @@ jobs:
           echo "--- library.json after import test ---"
           cat "$CONTAINER/Library/Application Support/EraLibrary/library.json" | python3 -m json.tool | head -40
           ls -la "$CONTAINER/Library/Application Support/EraLibrary/"
+      - name: Picker presentation test
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices booted -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for a in d.values() for x in a))')
+          xcrun simctl launch "$UDID" de.malte.era --era-demo --era-library --era-picker-test
+          sleep 5
+          xcrun simctl io "$UDID" screenshot screenshots/06-picker.png
+          xcrun simctl terminate "$UDID" de.malte.era
       - uses: actions/upload-artifact@v4
         with:
           name: Era-v3
           path: |
-            Era-v3-unsigned.ipa
+            Era-v3.1-unsigned.ipa
             screenshots/*.png

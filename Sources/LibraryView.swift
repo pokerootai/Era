@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @ObservedObject var player: PlayerEngine
-    @State private var importer = false
+    @State private var importer = ProcessInfo.processInfo.arguments.contains("--era-picker-test")
 
     private var importableTypes: [UTType] {
         var types: [UTType] = [.audio, .mp3, .mpeg4Audio, .wav, .aiff, .appleProtectedMPEG4Audio]
@@ -28,18 +28,19 @@ struct LibraryView: View {
                     Button { importer = true } label: { Image(systemName: "square.and.arrow.down") }.symbolEffect(.bounce, value: store.songs.count)
                 }
             }
-            .fileImporter(isPresented: $importer, allowedContentTypes: importableTypes, allowsMultipleSelection: true) { result in
-                switch result {
-                case .success(let urls):
-                    Task {
-                        try? await Task.sleep(nanoseconds: 400_000_000)
-                        await store.importFiles(urls)
+            .sheet(isPresented: $importer) {
+                DocumentPicker(contentTypes: importableTypes) { urls in
+                    importer = false
+                    guard !urls.isEmpty else {
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+                            store.importMessage = "Keine Dateien übernommen. Liegen die Songs lokal auf dem iPhone vor (nicht nur in iCloud)?"
+                        }
+                        return
                     }
-                case .failure(let error):
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 600_000_000)
-                        store.importMessage = "Dateien konnten nicht geöffnet werden: \(error.localizedDescription)"
-                    }
+                    Task { await store.importFiles(urls) }
+                } onCancel: {
+                    importer = false
                 }
             }
             .overlay(alignment: .bottom) {
