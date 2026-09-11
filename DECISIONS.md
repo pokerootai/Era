@@ -52,3 +52,6 @@ der Handoff-Spec rein. Versionsnummer Apple-orientiert: 27.0.0 (Major = kommende
 ## Offen (bewusst nicht entschieden)
 - iPad-/Mac-Optimierung (Spec: "spaeter"): Layout ist adaptiv (NavigationStack,
   Size Classes, keine fixen iPhone-Groessen), aber nicht iPad-verfeinert.
+
+## Audio-Hash: AVAssetReader statt AVAudioFile
+`AVAudioFile.read(into:)` wirft im Simulator (und potenziell auf manchen Geraeten) einen generischen Fehler beim PCM-Read. Der Dupe-Hash (SHA-256 ueber dekodierte PCM-Frames, Spec 13.3) dekodiert deshalb primaer ueber AVAssetReader (float32 PCM). AVAudioFile bleibt als Pfad fuer rohes FLAC, das AVAsset nicht oeffnet.
