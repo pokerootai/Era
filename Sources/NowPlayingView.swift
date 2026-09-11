@@ -37,6 +37,7 @@ struct NowPlayingView: View {
         }
         .frame(minHeight: geo.size.height - 96, alignment: .top)
         }
+        }
     }
     private func control(_ icon:String, active:Bool, action:@escaping()->Void)->some View {
         Button(action: action) {
