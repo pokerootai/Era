@@ -1,21 +1,26 @@
 name: Era
 options:
   bundleIdPrefix: de.malte
-  deploymentTarget: "26.0"
+  deploymentTarget: "18.0"
+  createIntermediateGroups: true
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    CURRENT_PROJECT_VERSION: "1"
 targets:
   Era:
     type: application
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "18.0"
     sources: [Sources]
+    dependencies:
+      - target: EraShareExtension
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.malte.era
         PRODUCT_NAME: Era
-        MARKETING_VERSION: "3.1"
+        MARKETING_VERSION: "27.0.0"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: YES
@@ -24,9 +29,24 @@ targets:
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         INFOPLIST_KEY_UIBackgroundModes: audio
+        INFOPLIST_KEY_NSSupportsLiveActivities: NO
+        CODE_SIGNING_ALLOWED: NO
+  EraShareExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources: [ShareExtension]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.malte.era.share
+        PRODUCT_NAME: EraShareExtension
+        MARKETING_VERSION: "27.0.0"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ShareExtension/Info.plist
         CODE_SIGNING_ALLOWED: NO
 schemes:
   Era:
     build:
       targets:
         Era: all
+        EraShareExtension: all

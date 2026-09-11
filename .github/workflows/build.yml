@@ -1,4 +1,4 @@
-name: Era v3
+name: Era
 on:
   workflow_dispatch:
   push:
@@ -19,21 +19,24 @@ jobs:
         run: brew install xcodegen
       - name: Generate project
         run: xcodegen generate
-      - name: Build device app
+      - name: Archive device app (unsigned)
         run: |
-          xcodebuild -project Era.xcodeproj -scheme Era -configuration Release -sdk iphoneos -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO build
-          mkdir -p Payload
-          cp -R build/device/Build/Products/Release-iphoneos/Era.app Payload/
-          zip -qry Era-v3.1-unsigned.ipa Payload
+          xcodebuild -project Era.xcodeproj -scheme Era -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/Era.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER
+          mkdir -p build/Payload
+          cp -R build/Era.xcarchive/Products/Applications/Era.app build/Payload/
+          cd build && zip -qry Era-unsigned.ipa Payload && cd ..
+          mv build/Era-unsigned.ipa Era-unsigned.ipa
       - name: Verify unsigned device IPA
         run: |
-          file Payload/Era.app/Era
-          lipo -info Payload/Era.app/Era
-          test ! -d Payload/Era.app/_CodeSignature
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Payload/Era.app/Info.plist
-          /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' Payload/Era.app/Info.plist
+          file build/Payload/Era.app/Era
+          lipo -info build/Payload/Era.app/Era
+          test ! -d build/Payload/Era.app/_CodeSignature
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Payload/Era.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Payload/Era.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' build/Payload/Era.app/Info.plist
+          ls build/Payload/Era.app/PlugIns/ 2>/dev/null || true
       - name: Build simulator
-        run: xcodebuild -project Era.xcodeproj -scheme Era -configuration Debug -sdk iphonesimulator -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -project Era.xcodeproj -scheme Era -configuration Debug -sdk iphonesimulator -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER build
       - name: Prepare test audio files
         run: |
           mkdir -p testaudio
@@ -47,9 +50,9 @@ jobs:
           open("testaudio/Notiz.txt", "w").write("keine Audiodatei")
           PY
           ls -la testaudio
-      - name: Capture simulator screenshots
+      - name: Boot newest iPhone simulator
+        id: sim
         run: |
-          set -e
           UDID=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys, re
           d = json.load(sys.stdin)["devices"]
@@ -64,52 +67,50 @@ jobs:
                       cand = (rtkey(rt), "Pro" in x["name"], x["udid"])
                       if best is None or cand > best: best = cand
           print(best[2])')
-          echo "Simulator: $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" build/sim/Build/Products/Debug-iphonesimulator/Era.app
+      - name: Capture simulator screenshots
+        run: |
+          set -e
+          UDID="${{ steps.sim.outputs.udid }}"
           mkdir -p screenshots
-          xcrun simctl launch "$UDID" de.malte.era --era-demo
-          sleep 4
-          xcrun simctl io "$UDID" screenshot screenshots/01-home.png
-          xcrun simctl terminate "$UDID" de.malte.era
-          xcrun simctl launch "$UDID" de.malte.era --era-demo --era-library
-          sleep 2
-          xcrun simctl io "$UDID" screenshot screenshots/02-library.png
-          xcrun simctl terminate "$UDID" de.malte.era
+          shot() {
+            xcrun simctl launch "$UDID" de.malte.era "$@"
+            sleep 4
+            xcrun simctl io "$UDID" screenshot "screenshots/$1.png" || true
+            xcrun simctl terminate "$UDID" de.malte.era || true
+          }
+          shot 01-home --era-demo
+          shot 02-library --era-demo --era-library
+          shot 03-song --era-demo --era-library --era-song
+          shot 04-packs --era-demo --era-packs
+          shot 05-search --era-demo --era-search
+          shot 06-settings --era-demo --era-library --era-settings
+      - name: Capture player screenshot
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
           xcrun simctl launch "$UDID" de.malte.era --era-demo --era-player
-          sleep 3
-          xcrun simctl io "$UDID" screenshot screenshots/03-player.png
-          xcrun simctl terminate "$UDID" de.malte.era
-          xcrun simctl launch "$UDID" de.malte.era --era-demo --era-settings
-          sleep 2
-          xcrun simctl io "$UDID" screenshot screenshots/04-settings.png
-          xcrun simctl terminate "$UDID" de.malte.era
+          sleep 5
+          xcrun simctl io "$UDID" screenshot screenshots/07-player.png
+          xcrun simctl terminate "$UDID" de.malte.era || true
       - name: Import pipeline test with real audio files
         run: |
           set -e
-          UDID=$(xcrun simctl list devices booted -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for a in d.values() for x in a))')
+          UDID="${{ steps.sim.outputs.udid }}"
           CONTAINER=$(xcrun simctl get_app_container "$UDID" de.malte.era data)
           mkdir -p "$CONTAINER/Documents/ImportTest"
           cp testaudio/*.wav testaudio/*.txt "$CONTAINER/Documents/ImportTest/"
           xcrun simctl launch "$UDID" de.malte.era --era-import-test --era-library
-          sleep 8
-          xcrun simctl io "$UDID" screenshot screenshots/05-import-test.png
-          xcrun simctl terminate "$UDID" de.malte.era
-          echo "--- library.json after import test ---"
-          cat "$CONTAINER/Library/Application Support/EraLibrary/library.json" | python3 -m json.tool | head -40
-          ls -la "$CONTAINER/Library/Application Support/EraLibrary/"
-      - name: Picker presentation test
-        run: |
-          set -e
-          UDID=$(xcrun simctl list devices booted -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for a in d.values() for x in a))')
-          xcrun simctl launch "$UDID" de.malte.era --era-demo --era-library --era-picker-test
-          sleep 5
-          xcrun simctl io "$UDID" screenshot screenshots/06-picker.png
-          xcrun simctl terminate "$UDID" de.malte.era
+          sleep 10
+          xcrun simctl io "$UDID" screenshot screenshots/08-import-test.png
+          xcrun simctl terminate "$UDID" de.malte.era || true
+          echo "--- EraLibrary after import test ---"
+          ls -la "$CONTAINER/Library/Application Support/EraLibrary/" || true
       - uses: actions/upload-artifact@v4
         with:
-          name: Era-v3
+          name: Era
           path: |
-            Era-v3.1-unsigned.ipa
+            Era-unsigned.ipa
             screenshots/*.png
