@@ -18,8 +18,8 @@ struct NowPlayingView: View {
         ScrollView { VStack(spacing: 24) {
             Artwork(song: song, radius: 28).frame(maxWidth: 355).aspectRatio(1, contentMode: .fit).padding(.horizontal, 26).padding(.top, 8).scaleEffect(player.isPlaying ? 1 : 0.91).animation(.spring(response: 0.45), value: player.isPlaying)
             HStack { VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.title2.bold()).lineLimit(1); Text(song.subtitle).foregroundStyle(.secondary) }; Spacer(); Button { store.toggleFavorite(song.id) } label: { Image(systemName: song.isFavorite ? "heart.fill" : "heart").font(.title2).foregroundStyle(song.isFavorite ? .pink : .primary).contentTransition(.symbolEffect(.replace)) } }.padding(.horizontal, 28)
-            VStack(spacing: 7) { Slider(value: Binding(get:{player.currentTime},set:{player.seek($0)}), in: 0...max(1,player.duration)).tint(.primary); HStack { Text(time(player.currentTime)); Spacer(); Text("-"+time(max(0,player.duration-player.currentTime))) }.font(.caption.monospacedDigit()).foregroundStyle(.secondary) }.padding(.horizontal, 28)
         } }
+        VStack(spacing: 7) { Slider(value: Binding(get:{player.currentTime},set:{player.seek($0)}), in: 0...max(1,player.duration)).tint(.primary); HStack { Text(time(player.currentTime)); Spacer(); Text("-"+time(max(0,player.duration-player.currentTime))) }.font(.caption.monospacedDigit()).foregroundStyle(.secondary) }.padding(.horizontal, 28).padding(.top, 4)
         HStack(spacing: 46) {
             Button { player.previous() } label: { Image(systemName: "backward.fill").font(.title) }
             Button { player.toggle() } label: {
