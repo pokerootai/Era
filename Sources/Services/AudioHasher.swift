@@ -7,11 +7,19 @@ import CryptoKit
 enum AudioHasher {
     struct Result { let hash: String; let duration: Double }
 
+    static var lastError: String = ""
+
     static func hash(url: URL) -> Result? {
-        guard let file = try? AVAudioFile(forReading: url) else { return nil }
+        guard let file = try? AVAudioFile(forReading: url) else {
+            lastError = "AVAudioFile init fehlgeschlagen"
+            return nil
+        }
         let format = file.processingFormat
         let duration = Double(file.length) / max(1, format.sampleRate)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 131_072) else { return nil }
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 65_536) else {
+            lastError = "Buffer-Allokation fehlgeschlagen (\(format))"
+            return nil
+        }
         var hasher = SHA256()
         do {
             while true {
@@ -29,7 +37,10 @@ enum AudioHasher {
                     }
                 }
             }
-        } catch { return nil }
+        } catch {
+            lastError = "read: \(error.localizedDescription)"
+            return nil
+        }
         let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
         return Result(hash: digest, duration: duration)
     }

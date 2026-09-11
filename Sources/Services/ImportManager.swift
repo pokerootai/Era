@@ -241,7 +241,7 @@ final class ImportManager: ObservableObject {
                 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "." + ext)
                 try data.write(to: tmp)
                 let hashed = AudioHasher.hash(url: tmp)
-                lines.append("\(name): hash=\(hashed == nil ? "NIL" : "ok") duration=\(hashed?.duration ?? -1)")
+                lines.append("\(name): hash=\(hashed == nil ? "NIL [\(AudioHasher.lastError)]" : "ok") duration=\(hashed?.duration ?? -1)")
                 try? FileManager.default.removeItem(at: tmp)
                 let outcome = try await storeOne(data: data, ext: ext, name: name, into: store, linkTo: nil, versionName: "OG")
                 lines.append("\(name): \(outcome == .imported ? "IMPORTIERT" : "DUPE")")
