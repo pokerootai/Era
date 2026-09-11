@@ -32,7 +32,7 @@ struct NowPlayingView: View {
             GlassEffectContainer(spacing: 18) {
                 HStack(spacing: 18) { control("shuffle", active: player.shuffle) { player.shuffle.toggle() }; control(player.repeatMode == 2 ? "repeat.1":"repeat", active: player.repeatMode > 0) { player.toggleRepeat() }; AirPlayRouteButton().frame(width:44,height:44); control("list.bullet", active:false) { showQueue=true }; control("moon.fill", active:player.sleepRemaining != nil) { showTimer=true } }
             }
-        }.padding(.bottom, 30) }
+        }.padding(.bottom, 120) }
     }
     private func control(_ icon:String, active:Bool, action:@escaping()->Void)->some View {
         Button(action: action) {
