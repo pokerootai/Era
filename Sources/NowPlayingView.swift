@@ -19,18 +19,19 @@ struct NowPlayingView: View {
             Artwork(song: song, radius: 28).frame(maxWidth: 355).aspectRatio(1, contentMode: .fit).padding(.horizontal, 26).padding(.top, 8).scaleEffect(player.isPlaying ? 1 : 0.91).animation(.spring(response: 0.45), value: player.isPlaying)
             HStack { VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.title2.bold()).lineLimit(1); Text(song.subtitle).foregroundStyle(.secondary) }; Spacer(); Button { store.toggleFavorite(song.id) } label: { Image(systemName: song.isFavorite ? "heart.fill" : "heart").font(.title2).foregroundStyle(song.isFavorite ? .pink : .primary).contentTransition(.symbolEffect(.replace)) } }.padding(.horizontal, 28)
             VStack(spacing: 7) { Slider(value: Binding(get:{player.currentTime},set:{player.seek($0)}), in: 0...max(1,player.duration)).tint(.primary); HStack { Text(time(player.currentTime)); Spacer(); Text("-"+time(max(0,player.duration-player.currentTime))) }.font(.caption.monospacedDigit()).foregroundStyle(.secondary) }.padding(.horizontal, 28)
-            HStack(spacing: 46) {
-                Button { player.previous() } label: { Image(systemName: "backward.fill").font(.title) }
-                Button { player.toggle() } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 34, weight: .bold))
-                        .contentTransition(.symbolEffect(.replace))
-                        .frame(width: 84, height: 84)
-                        .glassEffect(.regular.interactive(), in: .circle)
-                }
-                Button { player.next() } label: { Image(systemName: "forward.fill").font(.title) }
-            }
         } }
+        HStack(spacing: 46) {
+            Button { player.previous() } label: { Image(systemName: "backward.fill").font(.title) }
+            Button { player.toggle() } label: {
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 34, weight: .bold))
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 84, height: 84)
+                    .glassEffect(.regular.interactive(), in: .circle)
+            }
+            Button { player.next() } label: { Image(systemName: "forward.fill").font(.title) }
+        }
+        .padding(.vertical, 10)
         GlassEffectContainer(spacing: 18) {
             HStack(spacing: 18) { control("shuffle", active: player.shuffle) { player.shuffle.toggle() }; control(player.repeatMode == 2 ? "repeat.1":"repeat", active: player.repeatMode > 0) { player.toggleRepeat() }; AirPlayRouteButton().frame(width:44,height:44); control("list.bullet", active:false) { showQueue=true }; control("moon.fill", active:player.sleepRemaining != nil) { showTimer=true } }
         }
