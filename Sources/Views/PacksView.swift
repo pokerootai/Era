@@ -123,6 +123,10 @@ struct PackDetailView: View {
                     if let first = versions.first { player.play(first, from: versions) }
                 } label: { Label("Alle abspielen", systemImage: "play.fill") }
                 .disabled(matching.isEmpty)
+                Button {
+                    player.playShuffled(matching.compactMap(\.primaryVersion))
+                } label: { Label("Zufällige Wiedergabe", systemImage: "shuffle") }
+                .disabled(matching.isEmpty)
                 ForEach(matching) { song in
                     NavigationLink {
                         SongDetailView(song: song, showNowPlaying: $showNowPlaying)

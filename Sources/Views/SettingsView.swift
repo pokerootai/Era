@@ -4,8 +4,10 @@ import SwiftData
 // Apple-Stil: App-Icon + Versionsnummer, gruppierte Liste, nur Offline-Relevantes.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: EraStore
     @Query private var songs: [Song]
     @Query private var versions: [SongVersion]
+    @State private var spotlightRebuilt = false
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "27.0.0"
@@ -41,6 +43,15 @@ struct SettingsView: View {
                     Label("AirPlay & Bluetooth", systemImage: "airplayaudio")
                     Label("Sleep Timer", systemImage: "moon.zzz.fill")
                     Label("Lockscreen-Steuerung", systemImage: "lock.display")
+                }
+                Section("Suche & Siri") {
+                    Button {
+                        SpotlightIndexer.reindex(songs: songs)
+                        spotlightRebuilt = true
+                    } label: {
+                        Label("Spotlight-Index neu aufbauen", systemImage: spotlightRebuilt ? "checkmark.circle.fill" : "magnifyingglass")
+                    }
+                    Label("Siri: „Mit Era abspielen“, „pausieren“, „weiter“", systemImage: "mic.fill")
                 }
                 Section("Datenschutz") {
                     Label("Musik verlässt dein iPhone nicht", systemImage: "lock.fill")

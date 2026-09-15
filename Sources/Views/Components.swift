@@ -117,6 +117,11 @@ struct VolumeSlider: UIViewRepresentable {
 }
 
 // Natives iOS-Share-Sheet fuer Audiodateien (UIActivityViewController).
+struct ShareItem: Identifiable {
+    let url: URL
+    var id: URL { url }
+}
+
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 

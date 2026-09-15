@@ -165,6 +165,11 @@ struct LibraryView: View {
             } label: {
                 Label("Alle abspielen (\(sortedSongs.count))", systemImage: "play.fill")
             }
+            Button {
+                player.playShuffled(sortedSongs.compactMap(\.primaryVersion))
+            } label: {
+                Label("Zufällige Wiedergabe", systemImage: "shuffle")
+            }
             ForEach(sortedSongs) { song in
                 NavigationLink {
                     SongDetailView(song: song, showNowPlaying: $showNowPlaying)
@@ -276,15 +281,36 @@ struct SongListView: View {
     let songs: [Song]
     @Binding var showNowPlaying: Bool
     @EnvironmentObject private var player: PlayerEngine
+    @EnvironmentObject private var store: EraStore
 
     var body: some View {
-        List(songs) { song in
-            NavigationLink {
-                SongDetailView(song: song, showNowPlaying: $showNowPlaying)
-            } label: {
-                SongRow(song: song, version: nil, isCurrent: player.current?.song?.id == song.id)
+        List {
+            if songs.count > 1 {
+                Section {
+                    Button {
+                        let versions = songs.compactMap(\.primaryVersion)
+                        if let first = versions.first { player.play(first, from: versions) }
+                    } label: { Label("Alle abspielen", systemImage: "play.fill") }
+                    Button {
+                        player.playShuffled(songs.compactMap(\.primaryVersion))
+                    } label: { Label("Zufällige Wiedergabe", systemImage: "shuffle") }
+                }
             }
-            .contextMenu { SongContextMenu(song: song, showNowPlaying: $showNowPlaying) }
+            Section {
+                ForEach(songs) { song in
+                    NavigationLink {
+                        SongDetailView(song: song, showNowPlaying: $showNowPlaying)
+                    } label: {
+                        SongRow(song: song, version: nil, isCurrent: player.current?.song?.id == song.id)
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button { song.isFavorite.toggle(); store.save() } label: {
+                            Label("Favorit", systemImage: song.isFavorite ? "heart.slash" : "heart.fill")
+                        }.tint(.pink)
+                    }
+                    .contextMenu { SongContextMenu(song: song, showNowPlaying: $showNowPlaying) }
+                }
+            }
         }
         .navigationTitle(title)
     }

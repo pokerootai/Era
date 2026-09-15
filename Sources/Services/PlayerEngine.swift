@@ -121,6 +121,14 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     // MARK: - Queue
 
+    // Zufaellige Wiedergabe einer Menge (Shuffle-Buttons in Library/Playlists/Packs)
+    func playShuffled(_ versions: [SongVersion]) {
+        guard !versions.isEmpty else { return }
+        shuffle = true
+        let mixed = versions.shuffled()
+        play(mixed[0], from: mixed)
+    }
+
     func playNext(_ version: SongVersion) {
         if let current, let index = queue.firstIndex(where: { $0.id == current.id }) {
             queue.insert(version, at: index + 1)

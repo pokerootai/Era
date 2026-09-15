@@ -43,6 +43,18 @@ struct PlaylistDetailView: View {
                 }
             }
 
+            if !filteredEntries.isEmpty {
+                Section {
+                    Button {
+                        let versions = filteredEntries.compactMap(\.resolvedVersion)
+                        if let first = versions.first { player.play(first, from: versions) }
+                    } label: { Label("Alle abspielen", systemImage: "play.fill") }
+                    Button {
+                        player.playShuffled(filteredEntries.compactMap(\.resolvedVersion))
+                    } label: { Label("Zufällige Wiedergabe", systemImage: "shuffle") }
+                }
+            }
+
             Section {
                 ForEach(filteredEntries) { entry in
                     if let song = entry.song {
@@ -117,6 +129,9 @@ struct PlaylistEntryRow: View {
                 Button {
                     if let v = version { player.playNext(v) }
                 } label: { Label("Als Nächstes abspielen", systemImage: "text.line.first.and.arrowtriangle.forward") }
+                Button {
+                    if let v = version { player.playLater(v) }
+                } label: { Label("Zum Schluss hinzufügen", systemImage: "text.line.last.and.arrowtriangle.forward") }
 
                 // Versionen verschachtelt (Spec 5): vorhandene Versionen,
                 // in dieser Playlist vorhandene deaktiviert mit Grund im Label.
