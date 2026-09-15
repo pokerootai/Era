@@ -10,10 +10,14 @@ struct EraApp: App {
         let context = ModelContext(container)
         let store = EraStore(context: context)
         _store = State(initialValue: store)
+        PlayerEngine.shared.store = store
         store.ensureStatusTags()
         LegacyMigration.migrateIfNeeded(store: store)
         DemoSeed.seedIfNeeded(store: store)
         store.suggestPacksFromLibrary()
+        if let songs = try? store.allSongs(), !songs.isEmpty {
+            SpotlightIndexer.reindex(songs: songs)
+        }
         #if targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--era-import-test") {
             let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

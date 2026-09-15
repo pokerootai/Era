@@ -16,6 +16,11 @@ enum LibrarySection: String, CaseIterable, Identifiable {
     }
 }
 
+enum LibrarySort: String, CaseIterable, Identifiable {
+    case recent = "Zuletzt hinzugefügt", title = "Titel", artist = "Künstler"
+    var id: String { rawValue }
+}
+
 struct LibraryView: View {
     @Binding var showNowPlaying: Bool
     @EnvironmentObject private var store: EraStore
@@ -26,6 +31,7 @@ struct LibraryView: View {
     @Query private var playlists: [Playlist]
 
     @State private var section: LibrarySection = .songs
+    @State private var sort: LibrarySort = .recent
     @State private var showImporter = false
     @State private var showFolderImporter = false
     @State private var showSettings = false
@@ -61,6 +67,15 @@ struct LibraryView: View {
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("Sortierung", selection: $sort) {
+                            ForEach(LibrarySort.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
@@ -131,15 +146,26 @@ struct LibraryView: View {
         .listStyle(.insetGrouped)
     }
 
+    private var sortedSongs: [Song] {
+        switch sort {
+        case .recent: return songs
+        case .title: return songs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .artist: return songs.sorted {
+            let a = $0.displayArtist.localizedStandardCompare($1.displayArtist)
+            return a == .orderedSame ? $0.title.localizedStandardCompare($1.title) == .orderedAscending : a == .orderedAscending
+        }
+        }
+    }
+
     private var songsSection: some View {
         Section {
             Button {
-                let versions = songs.compactMap(\.primaryVersion)
+                let versions = sortedSongs.compactMap(\.primaryVersion)
                 if let first = versions.first { player.play(first, from: versions) }
             } label: {
-                Label("Alle abspielen (\(songs.count))", systemImage: "play.fill")
+                Label("Alle abspielen (\(sortedSongs.count))", systemImage: "play.fill")
             }
-            ForEach(songs) { song in
+            ForEach(sortedSongs) { song in
                 NavigationLink {
                     SongDetailView(song: song, showNowPlaying: $showNowPlaying)
                 } label: {

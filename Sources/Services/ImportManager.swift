@@ -65,6 +65,9 @@ final class ImportManager: ObservableObject {
         }
         isImporting = false
         store.suggestPacksFromLibrary()
+        if imported > 0, let songs = try? store.allSongs() {
+            SpotlightIndexer.reindex(songs: songs)
+        }
         message = summary(imported: imported, dupes: dupes, errors: errors)
     }
 
@@ -204,6 +207,9 @@ final class ImportManager: ObservableObject {
         }
         isImporting = false
         store.suggestPacksFromLibrary()
+        if imported > 0, let songs = try? store.allSongs() {
+            SpotlightIndexer.reindex(songs: songs)
+        }
         message = summary(imported: imported, dupes: dupes, errors: errors)
     }
 

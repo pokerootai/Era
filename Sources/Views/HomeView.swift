@@ -12,6 +12,8 @@ struct HomeView: View {
         songs.filter { $0.lastPlayedAt != nil }.sorted { ($0.lastPlayedAt ?? .distantPast) > ($1.lastPlayedAt ?? .distantPast) }
     }
     private var suggestions: [Pack] { packs.filter { !$0.confirmed } }
+    private var favorites: [Song] { songs.filter(\.isFavorite) }
+    private var mostPlayed: [Song] { songs.filter { $0.playCount > 0 }.sorted { $0.playCount > $1.playCount } }
 
     var body: some View {
         NavigationStack {
@@ -29,6 +31,8 @@ struct HomeView: View {
                                 resumeCard(resume)
                             }
                             if !lastPlayed.isEmpty { shelf(String(localized: "Zuletzt gehört"), songs: lastPlayed) }
+                            if !favorites.isEmpty { shelf(String(localized: "Favoriten"), songs: favorites) }
+                            if mostPlayed.count > 1 { shelf(String(localized: "Meist gespielt"), songs: mostPlayed) }
                             shelf(String(localized: "Zuletzt importiert"), songs: Array(songs.prefix(10)))
                             if !suggestions.isEmpty { suggestionsRow }
                         }
@@ -42,7 +46,12 @@ struct HomeView: View {
 
     private func resumeCard(_ song: Song) -> some View {
         Button {
-            if let v = song.primaryVersion { player.play(v, from: song.sortedVersions) }
+            if let v = song.primaryVersion {
+                player.play(v, from: song.sortedVersions)
+                if song.resumePosition > 10 && song.resumePosition < max(0, v.duration - 10) {
+                    player.seek(song.resumePosition)
+                }
+            }
             showNowPlaying = true
         } label: {
             HStack(spacing: 14) {

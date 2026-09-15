@@ -15,6 +15,7 @@ final class Song {
     var playCount: Int = 0
     var lastPlayedAt: Date?
     var isFavorite: Bool = false
+    var resumePosition: Double = 0
     var primaryVersionID: UUID?
 
     @Relationship(deleteRule: .cascade, inverse: \SongVersion.song)

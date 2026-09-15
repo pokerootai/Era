@@ -11,6 +11,7 @@ struct SongDetailView: View {
     @State private var showVersionDrawer = false
     @State private var showMetadataEditor = false
     @State private var versionToRename: SongVersion?
+    @State private var shareURL: URL?
 
     var body: some View {
         List {
@@ -64,6 +65,7 @@ struct SongDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showVersionDrawer) { VersionDrawer(song: song) }
         .sheet(isPresented: $showMetadataEditor) { MetadataEditView(song: song) }
+        .sheet(item: $shareURL) { url in ShareSheet(items: [url]) }
     }
 
     @ViewBuilder
@@ -72,6 +74,11 @@ struct SongDetailView: View {
             song.primaryVersionID = version.id
             store.save()
         } label: { Label("Als primäre Version", systemImage: "star") }
+        if FileManager.default.fileExists(atPath: LibraryFiles.url(for: version).path) {
+            Button {
+                shareURL = LibraryFiles.url(for: version)
+            } label: { Label("Version teilen", systemImage: "square.and.arrow.up") }
+        }
         Button {
             versionToRename = version
         } label: { Label("Umbenennen", systemImage: "pencil") }
@@ -176,6 +183,7 @@ struct SongContextMenu: View {
     @EnvironmentObject private var player: PlayerEngine
     @EnvironmentObject private var store: EraStore
     @State private var showDrawer = false
+    @State private var shareURL: URL?
 
     var body: some View {
         Group {
@@ -185,6 +193,9 @@ struct SongContextMenu: View {
             Button {
                 if let v = song.primaryVersion { player.playNext(v) }
             } label: { Label("Als Nächstes abspielen", systemImage: "text.line.first.and.arrowtriangle.forward") }
+            Button {
+                if let v = song.primaryVersion { player.playLater(v) }
+            } label: { Label("Zum Schluss hinzufügen", systemImage: "text.line.last.and.arrowtriangle.forward") }
             Menu {
                 Button { showDrawer = true } label: { Label("Hinzufügen", systemImage: "plus") }
                 Divider()
@@ -200,8 +211,14 @@ struct SongContextMenu: View {
             Button { song.isFavorite.toggle(); store.save() } label: {
                 Label(song.isFavorite ? "Favorit entfernen" : "Favorit", systemImage: song.isFavorite ? "heart.slash" : "heart")
             }
+            if let v = song.primaryVersion, FileManager.default.fileExists(atPath: LibraryFiles.url(for: v).path) {
+                Button { shareURL = LibraryFiles.url(for: v) } label: {
+                    Label("Teilen", systemImage: "square.and.arrow.up")
+                }
+            }
         }
         .sheet(isPresented: $showDrawer) { VersionDrawer(song: song) }
+        .sheet(item: $shareURL) { url in ShareSheet(items: [url]) }
     }
 
     private func versionLabel(_ version: SongVersion) -> String {

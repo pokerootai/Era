@@ -55,3 +55,35 @@ der Handoff-Spec rein. Versionsnummer Apple-orientiert: 27.0.0 (Major = kommende
 
 ## Audio-Hash: AVAssetReader statt AVAudioFile
 `AVAudioFile.read(into:)` wirft im Simulator (und potenziell auf manchen Geraeten) einen generischen Fehler beim PCM-Read. Der Dupe-Hash (SHA-256 ueber dekodierte PCM-Frames, Spec 13.3) dekodiert deshalb primaer ueber AVAssetReader (float32 PCM). AVAudioFile bleibt als Pfad fuer rohes FLAC, das AVAsset nicht oeffnet.
+
+## 27.1.0 (2026-09-15): Native Tiefe statt Eigenbau
+
+Maltes Vorgabe: ueberall native Apple-/SwiftUI-/UIKit-Komponenten und
+Standardverhalten, begruendete Ausnahmen (z.B. UIDocumentPickerViewController)
+bleiben. Apple Music weiterhin komplett draussen.
+
+- **Queue bearbeiten**: "Als Naechstes" mit nativem EditButton, .onMove/.onDelete,
+  "Queue leeren". Neu "Zum Schluss hinzufuegen" im Song-Kontextmenue.
+- **Teilen**: Audiodateien ueber das native Share-Sheet (UIActivityViewController),
+  im Song-Kontextmenue und pro Version im Detail. Nur wenn die Datei lokal existiert.
+- **CoreSpotlight**: Songs werden in den privaten On-Device-Index geschrieben
+  (Titel/Artist/Album/Tags/Versionen + Artwork-Thumbnail), Neuaufbau bei Start und
+  nach jedem Import. Tap auf einen Spotlight-Treffer oeffnet Era und spielt den Song
+  (CSSearchableItemActionType via onContinueUserActivity).
+- **App Shortcuts / Siri**: AppShortcutsProvider mit drei Kurzbefehlen
+  (Abspielen/Weiterhoeren, Pausieren, Naechster Titel). Steuern nur den lokalen
+  Player, offline. PlayerEngine bekommt dafuer eine schwache Store-Referenz
+  (resumeOrPlay: letzter Song oder einfach Play).
+- **Now Playing**: nativer MPVolumeView-Lautstaerkeregler, Tempo-Auswahl
+  (0.75-2x ueber AVAudioPlayer.enableRate), 15s-Sprungtasten
+  (gobackward.15/goforward.15), haptisches Feedback via .sensoryFeedback
+  (Favorit, Play/Pause).
+- **AVAudioSession-Haerte**: Unterbrechung (Anruf/Siri) pausiert und nimmt bei
+  .shouldResume wieder auf; Kopfhoerer/Bluetooth abgezogen pausiert
+  (oldDeviceUnavailable). Beides Apple-Standardverhalten.
+- **Fortsetzen-Position**: Song.resumePosition (SwiftData, additive Migration)
+  wird bei Pause/Wechsel gesichert; Home-"Fortsetzen" springt an die Stelle.
+- **Mediathek**: natives Sortier-Menue (Zuletzt/Titel/Kuenstler) in der Toolbar.
+- **Home**: zusaetzliche Regale "Favoriten" und "Meist gespielt".
+- **App-Icon**: iOS-18 Dark- und Tinted-Variante im Asset Catalog
+  (luminosity-Appearances, Dark = invertiert, Tinted = Alpha-Maske).

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreSpotlight
 
 enum AppScreen: String {
     case home, packs, library, search
@@ -37,12 +38,24 @@ struct ContentView: View {
         .eraTabMinimize()
         .modifier(MiniPlayerAccessory(isVisible: player.current != nil && !showNowPlaying, open: { showNowPlaying = true }))
         .sheet(isPresented: $showNowPlaying) { NowPlayingView() }
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            guard let idString = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                  let uuid = UUID(uuidString: idString),
+                  let song = findSong(uuid) else { return }
+            if let v = song.primaryVersion { player.play(v, from: song.sortedVersions) }
+            showNowPlaying = true
+        }
         .onAppear {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("--era-player"), player.current == nil, let first = firstSong() {
                 if let v = first.primaryVersion { player.play(v, from: first.sortedVersions) }
             }
         }
+    }
+
+    private func findSong(_ uuid: UUID) -> Song? {
+        var descriptor = FetchDescriptor<Song>()
+        return try? modelContext.fetch(descriptor).first { $0.id == uuid }
     }
 
     private func firstSong() -> Song? {

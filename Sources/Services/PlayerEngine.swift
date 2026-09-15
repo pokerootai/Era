@@ -14,19 +14,29 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var shuffle = false
     @Published var repeatMode = 0 // 0 aus, 1 alle, 2 einer
     @Published var sleepRemaining: Int?
+    @Published var rate: Float = 1.0
+
+    weak var store: EraStore?
 
     private var audio: AVAudioPlayer?
     private var ticker: Timer?
     private var sleepTimer: Timer?
+    private var wasPlayingBeforeInterruption = false
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeObserver: NSObjectProtocol?
 
     override init() {
         super.init()
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
         try? AVAudioSession.sharedInstance().setActive(true)
         setupRemoteCommands()
+        observeInterruptions()
     }
 
+    // MARK: - Wiedergabe
+
     func play(_ version: SongVersion, from versions: [SongVersion]) {
+        saveResumePosition()
         queue = versions
         current = version
         let url = LibraryFiles.url(for: version)
@@ -44,6 +54,8 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         do {
             audio = try AVAudioPlayer(contentsOf: url)
             audio?.delegate = self
+            audio?.enableRate = true
+            audio?.rate = rate
             audio?.prepareToPlay()
             audio?.play()
             duration = audio?.duration ?? version.duration
@@ -57,6 +69,20 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
     }
 
+    // App Intents / Spotlight: weiterhoeren ohne UI-Kontext (Spec 13.4)
+    func resumeOrPlay() {
+        if current != nil {
+            if !isPlaying { toggle() }
+            return
+        }
+        guard let store, let songs = try? store.allSongs(), !songs.isEmpty else { return }
+        let recent = songs.sorted { ($0.lastPlayedAt ?? .distantPast) > ($1.lastPlayedAt ?? .distantPast) }
+        if let song = recent.first, let v = song.primaryVersion {
+            play(v, from: song.sortedVersions)
+            if song.resumePosition > 10 { seek(song.resumePosition) }
+        }
+    }
+
     private func markPlayed(_ version: SongVersion) {
         guard let song = version.song else { return }
         song.playCount += 1
@@ -64,9 +90,15 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         try? song.modelContext?.save()
     }
 
+    private func saveResumePosition() {
+        guard let song = current?.song else { return }
+        song.resumePosition = currentTime
+        try? song.modelContext?.save()
+    }
+
     func toggle() {
         guard current != nil else { return }
-        if isPlaying { audio?.pause() } else { audio?.play() }
+        if isPlaying { audio?.pause(); saveResumePosition() } else { audio?.play() }
         isPlaying.toggle()
         updateNowPlaying()
     }
@@ -77,12 +109,47 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         updateNowPlaying()
     }
 
+    func skipForward() { seek(min(currentTime + 15, duration)) }
+    func skipBackward() { seek(max(currentTime - 15, 0)) }
+
+    func setRate(_ newRate: Float) {
+        rate = newRate
+        audio?.enableRate = true
+        audio?.rate = newRate
+        updateNowPlaying()
+    }
+
+    // MARK: - Queue
+
     func playNext(_ version: SongVersion) {
         if let current, let index = queue.firstIndex(where: { $0.id == current.id }) {
             queue.insert(version, at: index + 1)
         } else {
             play(version, from: [version])
         }
+    }
+
+    func playLater(_ version: SongVersion) {
+        if current != nil {
+            queue.append(version)
+        } else {
+            play(version, from: [version])
+        }
+    }
+
+    func moveInQueue(from source: IndexSet, to destination: Int) {
+        queue.move(fromOffsets: source, toOffset: destination)
+    }
+
+    func removeFromQueue(at offsets: IndexSet) {
+        let removingCurrent = offsets.contains { queue.indices.contains($0) && queue[$0].id == current?.id }
+        queue.remove(atOffsets: offsets)
+        if removingCurrent { next() }
+    }
+
+    func clearQueue() {
+        guard let current else { queue = []; return }
+        queue = [current]
     }
 
     func next() { move(1) }
@@ -99,13 +166,15 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
         var target = index + offset
         if target >= queue.count {
-            if repeatMode == 1 { target = 0 } else { seek(0); audio?.pause(); isPlaying = false; updateNowPlaying(); return }
+            if repeatMode == 1 { target = 0 } else { seek(0); audio?.pause(); isPlaying = false; saveResumePosition(); updateNowPlaying(); return }
         }
         if target < 0 { target = queue.count - 1 }
         play(queue[target], from: queue)
     }
 
     func toggleRepeat() { repeatMode = (repeatMode + 1) % 3 }
+
+    // MARK: - Sleep Timer
 
     func setSleep(minutes: Int) {
         sleepTimer?.invalidate()
@@ -119,6 +188,8 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
     }
     func cancelSleep() { sleepTimer?.invalidate(); sleepRemaining = nil }
+
+    // MARK: - Ticker
 
     private func startTicker() {
         ticker?.invalidate()
@@ -136,7 +207,57 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         Task { @MainActor in self.next() }
     }
 
-    // MPNowPlayingInfoCenter + MPRemoteCommandCenter an einer Stelle (Spec 13.1)
+    // MARK: - Unterbrechungen (Anruf, Siri) und Route-Wechsel (Kopfhoerer ab)
+
+    private func observeInterruptions() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in self?.handleInterruption(note) }
+        }
+        routeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in self?.handleRouteChange(note) }
+        }
+    }
+
+    private func handleInterruption(_ note: Notification) {
+        guard let typeValue = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+        switch type {
+        case .began:
+            wasPlayingBeforeInterruption = isPlaying
+            if isPlaying { audio?.pause(); isPlaying = false; updateNowPlaying() }
+        case .ended:
+            let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if wasPlayingBeforeInterruption && options.contains(.shouldResume) {
+                try? AVAudioSession.sharedInstance().setActive(true)
+                audio?.play()
+                isPlaying = true
+                updateNowPlaying()
+            }
+            wasPlayingBeforeInterruption = false
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleRouteChange(_ note: Notification) {
+        guard let reasonValue = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+        // Kopfhoerer rausgezogen / Bluetooth getrennt: pausieren (Apple-Standardverhalten)
+        if reason == .oldDeviceUnavailable && isPlaying {
+            audio?.pause()
+            isPlaying = false
+            saveResumePosition()
+            updateNowPlaying()
+        }
+    }
+
+    // MARK: - Lockscreen / Kontrollzentrum (Spec 13.1)
+
     private func setupRemoteCommands() {
         let center = MPRemoteCommandCenter.shared()
         center.playCommand.addTarget { [weak self] _ in Task { @MainActor in if self?.isPlaying == false { self?.toggle() } }; return .success }
@@ -158,7 +279,7 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
             MPMediaItemPropertyAlbumTitle: version.displayAlbum,
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1 : 0
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? rate : 0
         ]
         guard let song = version.song else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = base

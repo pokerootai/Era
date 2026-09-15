@@ -46,6 +46,11 @@ enum DemoSeed {
         store.insertPack(Pack(name: "Donda Era", tagIDs: [donda.id], confirmed: false))
         store.insertPack(Pack(name: "Unreleased Ye", statusNames: ["Unreleased"], confirmed: false))
 
+        hurricane.isFavorite = true
+        runaway.isFavorite = true
+        afterglow.isFavorite = true
+        runaway.resumePosition = 62
+
         let favs = Playlist(name: "Ye - Favorites")
         favs.filterTagIDs = []
         store.insertPlaylist(favs)

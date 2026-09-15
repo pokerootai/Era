@@ -1,5 +1,7 @@
 import SwiftUI
 import AVKit
+import MediaPlayer
+import UIKit
 
 // Artwork: eingebettetes Cover der Version, sonst generierte Disc (Spec 8.1).
 struct Artwork: View {
@@ -102,4 +104,24 @@ struct AirPlayRouteButton: UIViewRepresentable {
         return view
     }
     func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+
+// Nativer Lautstaerke-Slider (MediaPlayer.MPVolumeView, wie in Apple Music).
+struct VolumeSlider: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        let view = MPVolumeView()
+        view.showsRouteButton = false
+        return view
+    }
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+}
+
+// Natives iOS-Share-Sheet fuer Audiodateien (UIActivityViewController).
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
