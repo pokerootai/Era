@@ -8,6 +8,8 @@ struct NowPlayingView: View {
     @State private var showQueue = false
     @State private var showTimer = false
     @State private var confirmClearQueue = false
+    @AppStorage(AppSettings.skipIntervalKey) private var skipInterval = 15
+    @AppStorage(AppSettings.hapticsEnabledKey) private var haptics = true
 
     init() {
         if ProcessInfo.processInfo.arguments.contains("--era-queue") {
@@ -68,7 +70,7 @@ struct NowPlayingView: View {
                             .foregroundStyle(song.isFavorite ? .pink : .primary)
                             .contentTransition(.symbolEffect(.replace))
                     }
-                    .sensoryFeedback(.impact(flexibility: .soft), trigger: song.isFavorite)
+                    .sensoryFeedback(.impact(flexibility: .soft), trigger: song.isFavorite) { _, _ in haptics }
                     Menu {
                         ForEach(song.sortedVersions) { v in
                             Button {
@@ -101,7 +103,7 @@ struct NowPlayingView: View {
 
             HStack(spacing: 24) {
                 Button { player.previous() } label: { Image(systemName: "backward.fill").font(.title2) }
-                Button { player.skipBackward() } label: { Image(systemName: "gobackward.15").font(.title3) }
+                Button { player.skipBackward() } label: { Image(systemName: "gobackward.\(skipInterval)").font(.title3) }
                 Button { player.toggle() } label: {
                     Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 36, weight: .bold))
@@ -109,8 +111,8 @@ struct NowPlayingView: View {
                         .frame(width: 80, height: 80)
                         .eraGlassCircle()
                 }
-                .sensoryFeedback(.selection, trigger: player.isPlaying)
-                Button { player.skipForward() } label: { Image(systemName: "goforward.15").font(.title3) }
+                .sensoryFeedback(.selection, trigger: player.isPlaying) { _, _ in haptics }
+                Button { player.skipForward() } label: { Image(systemName: "goforward.\(skipInterval)").font(.title3) }
                 Button { player.next() } label: { Image(systemName: "forward.fill").font(.title2) }
             }
             .padding(.top, 16)

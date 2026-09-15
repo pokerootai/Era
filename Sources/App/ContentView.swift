@@ -10,6 +10,8 @@ struct ContentView: View {
     @EnvironmentObject private var player: PlayerEngine
     @State private var selection: AppScreen = .home
     @State private var showNowPlaying = false
+    @State private var showOnboarding = false
+    @AppStorage(AppSettings.hasOnboardedKey) private var hasOnboarded = false
     @Environment(\.modelContext) private var modelContext
 
     init() {
@@ -18,6 +20,7 @@ struct ContentView: View {
         else if args.contains("--era-packs") { _selection = State(initialValue: .packs) }
         else if args.contains("--era-search") { _selection = State(initialValue: .search) }
         if args.contains("--era-player") { _showNowPlaying = State(initialValue: true) }
+        if args.contains("--era-onboarding") { _showOnboarding = State(initialValue: true) }
     }
 
     var body: some View {
@@ -38,6 +41,7 @@ struct ContentView: View {
         .eraTabMinimize()
         .modifier(MiniPlayerAccessory(isVisible: player.current != nil && !showNowPlaying, open: { showNowPlaying = true }))
         .sheet(isPresented: $showNowPlaying) { NowPlayingView() }
+        .sheet(isPresented: $showOnboarding) { OnboardingView() }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
             guard let idString = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
                   let uuid = UUID(uuidString: idString),
@@ -47,6 +51,8 @@ struct ContentView: View {
         }
         .onAppear {
             let args = ProcessInfo.processInfo.arguments
+            // Erste Start: Einfuehrung zeigen (Screenshot-Modus ausgenommen)
+            if !hasOnboarded && !args.contains("--era-demo") { showOnboarding = true }
             if args.contains("--era-player"), player.current == nil {
                 if args.contains("--era-queue") {
                     // Queue-Screenshot: alle Songs als Queue

@@ -17,6 +17,12 @@ enum SpotlightIndexer {
         let thumbnail: Data?
     }
 
+    static func clearAll() {
+        Task.detached(priority: .utility) {
+            try? await CSSearchableIndex.default().deleteAllSearchableItems()
+        }
+    }
+
     // Kompletter Neuaufbau des Index: Bibliothek ist klein, das ist der
     // zuverlaessigste Weg gegen verwaiste Treffer nach Loeschungen.
     static func reindex(songs: [Song]) {

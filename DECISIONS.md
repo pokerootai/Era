@@ -92,3 +92,16 @@ bleiben. Apple Music weiterhin komplett draussen.
 - Der native MPVolumeView-Lautstaerkeregler rendert im iOS-Simulator leer
   (kein volumenfaehiger Ausgabe-Route) - auf dem Geraet ist er sichtbar.
   Bewusst trotzdem nativ, kein Ersatz-Slider.
+
+## 27.1.0 - Einstellungen & Onboarding (Batch 5, 15.09.2026)
+- Einstellungen: Info-Sektion "Wiedergabe" durch echte Einstellungen ersetzt:
+  Standard-Tempo (0,75-2x), Sprungweite (5/10/15/30 s), Kopfhoererabzug-Pause,
+  Fortsetzen nach Anruf, Haptik, Spotlight-Sichtbarkeit. Alle in UserDefaults
+  (@AppStorage in den Views, PlayerEngine liest live ueber AppSettings).
+- Datenschutz-Sektion aus den Einstellungen entfernt; Datenschutz gehoert in die
+  Einfuehrung (Maltes Vorgabe). In den Einstellungen bleibt eine Kurzzeile.
+- OnboardingView: natives 3-Seiten-Onboarding (Willkommen / Datenschutz /
+  Grundeinstellungen) als Sheet beim ersten Start, Seiten via TabView(.page).
+  Setzt hasCompletedOnboarding; im Screenshot-Modus (--era-demo) unterdrueckt,
+  erzwingbar via --era-onboarding. "Einfuehrung erneut ansehen" in Einstellungen.
+- SpotlightIndexer.clearAll() loescht den Index, wenn Spotlight deaktiviert wird.

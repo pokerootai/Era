@@ -27,6 +27,7 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     override init() {
         super.init()
+        rate = AppSettings.defaultRate
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
         try? AVAudioSession.sharedInstance().setActive(true)
         setupRemoteCommands()
@@ -109,8 +110,8 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         updateNowPlaying()
     }
 
-    func skipForward() { seek(min(currentTime + 15, duration)) }
-    func skipBackward() { seek(max(currentTime - 15, 0)) }
+    func skipForward() { seek(min(currentTime + AppSettings.skipInterval, duration)) }
+    func skipBackward() { seek(max(currentTime - AppSettings.skipInterval, 0)) }
 
     func setRate(_ newRate: Float) {
         rate = newRate
@@ -240,7 +241,7 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
         case .ended:
             let optionsValue = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if wasPlayingBeforeInterruption && options.contains(.shouldResume) {
+            if wasPlayingBeforeInterruption && options.contains(.shouldResume) && AppSettings.bool(AppSettings.resumeAfterInterruptionKey) {
                 try? AVAudioSession.sharedInstance().setActive(true)
                 audio?.play()
                 isPlaying = true
@@ -255,8 +256,8 @@ final class PlayerEngine: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private func handleRouteChange(_ note: Notification) {
         guard let reasonValue = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
-        // Kopfhoerer rausgezogen / Bluetooth getrennt: pausieren (Apple-Standardverhalten)
-        if reason == .oldDeviceUnavailable && isPlaying {
+        // Kopfhoerer rausgezogen / Bluetooth getrennt: pausieren (Apple-Standardverhalten, abschaltbar)
+        if reason == .oldDeviceUnavailable && isPlaying && AppSettings.bool(AppSettings.pauseOnRouteChangeKey) {
             audio?.pause()
             isPlaying = false
             saveResumePosition()

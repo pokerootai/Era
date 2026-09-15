@@ -89,6 +89,8 @@ jobs:
           shot 05-search --era-demo --era-search
           shot 06-settings --era-demo --era-library --era-settings
           shot 09-queue --era-demo --era-player --era-queue
+          shot 10-onboarding --era-demo --era-onboarding
+          shot 11-onboarding-settings --era-demo --era-onboarding --era-onboarding-settings
       - name: Capture player screenshot
         run: |
           UDID="${{ steps.sim.outputs.udid }}"

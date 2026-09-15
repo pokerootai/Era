@@ -15,7 +15,8 @@ struct EraApp: App {
         LegacyMigration.migrateIfNeeded(store: store)
         DemoSeed.seedIfNeeded(store: store)
         store.suggestPacksFromLibrary()
-        if let songs = try? store.allSongs(), !songs.isEmpty {
+        if AppSettings.bool(AppSettings.spotlightEnabledKey),
+           let songs = try? store.allSongs(), !songs.isEmpty {
             SpotlightIndexer.reindex(songs: songs)
         }
         #if targetEnvironment(simulator)
