@@ -31,6 +31,16 @@ struct NowPlayingView: View {
             }
             .sheet(isPresented: $showQueue) { queueSheet }
             .sheet(isPresented: $showTimer) { timerSheet }
+            .background {
+                // Tastaturkurzbefehle (iPad/Mac): Leertaste + Pfeile, unsichtbar
+                Group {
+                    Button("") { player.toggle() }.keyboardShortcut(.space, modifiers: [])
+                    Button("") { player.next() }.keyboardShortcut(.rightArrow, modifiers: [])
+                    Button("") { player.previous() }.keyboardShortcut(.leftArrow, modifiers: [])
+                }
+                .hidden()
+                .accessibilityHidden(true)
+            }
         }
     }
 

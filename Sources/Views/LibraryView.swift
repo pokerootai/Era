@@ -64,9 +64,11 @@ struct LibraryView: View {
                     } label: {
                         Image(systemName: "square.and.arrow.down")
                     }
+                    .accessibilityLabel("Importieren")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("Einstellungen")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -76,6 +78,7 @@ struct LibraryView: View {
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
                     }
+                    .accessibilityLabel("Sortieren")
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }

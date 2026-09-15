@@ -8,6 +8,8 @@ struct SettingsView: View {
     @Query private var songs: [Song]
     @Query private var versions: [SongVersion]
     @State private var spotlightRebuilt = false
+    @State private var backupItem: ShareItem?
+    @State private var backupError = false
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "27.0.0"
@@ -44,6 +46,17 @@ struct SettingsView: View {
                     Label("Sleep Timer", systemImage: "moon.zzz.fill")
                     Label("Lockscreen-Steuerung", systemImage: "lock.display")
                 }
+                Section("Backup") {
+                    Button {
+                        do {
+                            backupItem = ShareItem(url: try BackupService.exportURL(store: store))
+                        } catch {
+                            backupError = true
+                        }
+                    } label: {
+                        Label("Bibliothek exportieren (JSON)", systemImage: "square.and.arrow.up.on.square")
+                    }
+                }
                 Section("Suche & Siri") {
                     Button {
                         SpotlightIndexer.reindex(songs: songs)
@@ -64,6 +77,10 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { dismiss() }
                 }
+            }
+            .sheet(item: $backupItem) { item in ShareSheet(items: [item.url]) }
+            .alert("Backup fehlgeschlagen", isPresented: $backupError) {
+                Button("OK", role: .cancel) {}
             }
         }
     }
