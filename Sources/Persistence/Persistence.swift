@@ -103,13 +103,21 @@ extension EraStore: TagRepository {
 }
 
 extension EraStore {
+    /// Verworfene Pack-Vorschlaege (UserDefaults, kein Schema-Eingriff noetig).
+    private static let dismissedKey = "dismissedPackSuggestionNames"
+
     func suggestPacksFromLibrary() {
         guard let songs = try? allSongs(), !songs.isEmpty,
               let packs = try? allPacks(), let tags = try? allTags() else { return }
-        let existingNames = Set(packs.map { $0.name.lowercased() })
+        var existingNames = Set(packs.map { $0.name.lowercased() })
+        existingNames.formUnion(UserDefaults.standard.stringArray(forKey: EraStore.dismissedKey) ?? [])
+        // Das dynamische "Favoriten"-Pack existiert immer - kein doppelter Vorschlag
+        let dynamicNames: Set<String> = ["favoriten", "favorite", "meistgespielt", "zuletzt hinzugefügt"]
         for tag in tags {
             let count = songs.filter { $0.tags.contains { $0.id == tag.id } }.count
-            guard count >= 2, !existingNames.contains(tag.name.lowercased()) else { continue }
+            guard count >= 2,
+                  !existingNames.contains(tag.name.lowercased()),
+                  !dynamicNames.contains(tag.name.lowercased()) else { continue }
             let pack = Pack(name: tag.name, tagIDs: tag.isStatus ? [] : [tag.id],
                             statusNames: tag.isStatus ? [tag.name] : [], confirmed: false)
             context.insert(pack)
@@ -121,6 +129,17 @@ extension EraStore {
 extension EraStore: PackRepository {
     func insertPack(_ pack: Pack) { context.insert(pack); save() }
     func deletePack(_ pack: Pack) { context.delete(pack); save() }
+    /// Verwirft einen Pack-Vorschlag dauerhaft - erscheint beim naechsten Start nicht erneut.
+    func dismissPackSuggestion(_ pack: Pack) {
+        var dismissed = UserDefaults.standard.stringArray(forKey: EraStore.dismissedKey) ?? []
+        let name = pack.name.lowercased()
+        if !dismissed.contains(name) {
+            dismissed.append(name)
+            UserDefaults.standard.set(dismissed, forKey: EraStore.dismissedKey)
+        }
+        context.delete(pack)
+        save()
+    }
     func allPacks() throws -> [Pack] { try context.fetch(FetchDescriptor<Pack>(sortBy: [SortDescriptor(\.dateAdded, order: .reverse)])) }
 }
 

@@ -7,6 +7,7 @@ struct NowPlayingView: View {
     @EnvironmentObject private var store: EraStore
     @State private var showQueue = false
     @State private var showTimer = false
+    @State private var confirmClearQueue = false
 
     init() {
         if ProcessInfo.processInfo.arguments.contains("--era-queue") {
@@ -178,11 +179,21 @@ struct NowPlayingView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { EditButton() }
                 ToolbarItem(placement: .topBarTrailing) { Button("Fertig") { showQueue = false } }
-                ToolbarItem(placement: .bottomBar) {
+                ToolbarItem(placement: .topBarTrailing) {
                     if player.queue.count > 1 {
-                        Button("Queue leeren", role: .destructive) { player.clearQueue() }
+                        Menu {
+                            Button("Queue leeren", role: .destructive) { confirmClearQueue = true }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
                     }
                 }
+            }
+            .confirmationDialog("Queue leeren?", isPresented: $confirmClearQueue, titleVisibility: .visible) {
+                Button("Queue leeren", role: .destructive) { player.clearQueue() }
+                Button("Abbrechen", role: .cancel) {}
+            } message: {
+                Text("Alle Titel außer dem aktuellen werden aus der Warteschlange entfernt.")
             }
         }
         .presentationDetents([.medium, .large])

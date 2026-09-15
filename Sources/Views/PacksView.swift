@@ -66,6 +66,11 @@ struct PacksView: View {
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                             }
+                            .swipeActions {
+                                Button(role: .destructive) { store.dismissPackSuggestion(pack) } label: {
+                                    Label("Verwerfen", systemImage: "xmark")
+                                }
+                            }
                         }
                     }
                 }
