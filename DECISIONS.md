@@ -87,3 +87,8 @@ bleiben. Apple Music weiterhin komplett draussen.
 - **Home**: zusaetzliche Regale "Favoriten" und "Meist gespielt".
 - **App-Icon**: iOS-18 Dark- und Tinted-Variante im Asset Catalog
   (luminosity-Appearances, Dark = invertiert, Tinted = Alpha-Maske).
+
+### Simulator-Hinweis 27.1.0
+- Der native MPVolumeView-Lautstaerkeregler rendert im iOS-Simulator leer
+  (kein volumenfaehiger Ausgabe-Route) - auf dem Geraet ist er sichtbar.
+  Bewusst trotzdem nativ, kein Ersatz-Slider.

@@ -47,8 +47,16 @@ struct ContentView: View {
         }
         .onAppear {
             let args = ProcessInfo.processInfo.arguments
-            if args.contains("--era-player"), player.current == nil, let first = firstSong() {
-                if let v = first.primaryVersion { player.play(v, from: first.sortedVersions) }
+            if args.contains("--era-player"), player.current == nil {
+                if args.contains("--era-queue") {
+                    // Queue-Screenshot: alle Songs als Queue
+                    if let songs = try? modelContext.fetch(FetchDescriptor<Song>(sortBy: [SortDescriptor(\.dateAdded, order: .reverse)])),
+                       let first = songs.first, let v = first.primaryVersion {
+                        player.play(v, from: songs.compactMap(\.primaryVersion))
+                    }
+                } else if let first = firstSong(), let v = first.primaryVersion {
+                    player.play(v, from: first.sortedVersions)
+                }
             }
         }
     }
